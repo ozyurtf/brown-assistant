@@ -7,6 +7,10 @@ from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from langchain.evaluation import load_evaluator
 from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
 from nltk.tokenize import word_tokenize
+import evaluate
+
+bleu_metric = evaluate.load("bleu")
+rouge_metric = evaluate.load("rouge")
 
 def map_code_to_dept_cab():
     """Scrape the main page to find department codes"""
@@ -92,56 +96,40 @@ def format_course(cab):
                 course_info_all.append(course_info)
     return course_info_all
 
-def compute_rouge_score(prediction: str, reference: str) -> float:
-    """
-    Compute ROUGE-L F1 score between a prediction and a reference.
-
-    This implementation tokenizes on words, computes the Longest Common
-    Subsequence (LCS) length, then returns the F1 score derived from
-    precision and recall based on LCS.
-    """
-    # Normalize and tokenize
-    pred_tokens = word_tokenize((prediction or "").lower())
-    ref_tokens = word_tokenize((reference or "").lower())
-
-    if not pred_tokens or not ref_tokens:
-        return 0.0
-
-    # Compute LCS length using dynamic programming
-    n = len(pred_tokens)
-    m = len(ref_tokens)
-    dp = [[0] * (m + 1) for _ in range(n + 1)]
-    for i in range(1, n + 1):
-        for j in range(1, m + 1):
-            if pred_tokens[i - 1] == ref_tokens[j - 1]:
-                dp[i][j] = dp[i - 1][j - 1] + 1
-            else:
-                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
-
-    lcs_len = float(dp[n][m])
-    precision = lcs_len / float(n) if n > 0 else 0.0
-    recall = lcs_len / float(m) if m > 0 else 0.0
-    if precision + recall == 0:
-        return 0.0
-
-    rouge_l_f1 = 2 * precision * recall / (precision + recall)
-    return float(rouge_l_f1)
 
 def compute_bleu_score(prediction: str, reference: str) -> float:
     """
-    Compute sentence-level BLEU score for a single prediction and reference.
-
+    Compute BLEU score using Hugging Face's evaluate library.
     Args:
         prediction (str): model-generated text
         reference (str): ground-truth text
-
     Returns:
         float: BLEU score (0–1 range)
     """
-    smoothie = SmoothingFunction().method4
-    
-    # Tokenize and lowercase
-    prediction_tokens = word_tokenize(prediction.lower())
-    reference_tokens = [word_tokenize(reference.lower())]
+    if not prediction or not reference:
+        return 0.0
 
-    return sentence_bleu(reference_tokens, prediction_tokens, smoothing_function=smoothie)
+    result = bleu_metric.compute(
+        predictions=[prediction],
+        references=[[reference]]
+    )
+    return float(result["bleu"])
+
+
+def compute_rouge_score(prediction: str, reference: str) -> float:
+    """
+    Compute ROUGE-L F1 score using Hugging Face's evaluate library.
+    Args:
+        prediction (str): model-generated text
+        reference (str): ground-truth text
+    Returns:
+        float: ROUGE-L F1 score (0–1 range)
+    """
+    if not prediction or not reference:
+        return 0.0
+
+    result = rouge_metric.compute(
+        predictions=[prediction],
+        references=[reference]
+    )
+    return float(result["rougeL"])

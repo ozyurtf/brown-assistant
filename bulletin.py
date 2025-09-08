@@ -106,7 +106,7 @@ async def scrape_all_concentrations(urls):
         
     return bulletin
 
-def save_bulletin_to_json(bulletin, filename="bulletin.json"):
+def save_bulletin_to_json(bulletin, filename="files/bulletin.json"):
     """Save bulletin dictionary to JSON file."""
     try:
         with open(filename, 'w', encoding='utf-8') as f:

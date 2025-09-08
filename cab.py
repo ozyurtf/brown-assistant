@@ -133,13 +133,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--terms", nargs="+", default=["202510"])
     parser.add_argument("--workers", type=int, default=12)
-    parser.add_argument("--out", default="cab.json")
+    parser.add_argument("--out", default="files/cab.json")
     args = parser.parse_args()
 
     all_results: list[dict] = []
     start = time.time()
     targets: list[tuple[str, str | None]] = []
-    
+
     cab_code_to_dept_map = map_code_to_dept_cab()
     dept_codes = list(cab_code_to_dept_map.values())
     targets = [(t, d) for t in args.terms for d in dept_codes]

@@ -171,8 +171,8 @@ class RAG:
 
         return items
     
-    def generate(self, user_query, context): 
-        model = ChatOpenAI(model="gpt-4o-mini", temperature=0.2, max_tokens=1000)
+    def generate(self, user_query: str, context: str, max_tokens: int = 1000): 
+        model = ChatOpenAI(model="gpt-4o-mini", temperature=0.2, max_tokens=max_tokens)
         prompt = PromptTemplate.from_template(
             """
             You are a helpful assistant that helps students at Brown University 

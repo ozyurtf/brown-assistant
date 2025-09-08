@@ -15,6 +15,7 @@ app = FastAPI(title="RAG API", version="1.0.0")
 LOGGER_NAME = "rag_logger"
 LOG_DIR = os.path.join(os.getcwd(), "logs")
 LOG_FILE = os.path.join(LOG_DIR, "records.txt")
+EVALUATION_FILE_PATH = "files/evaluation.json"
 
 def init_logger() -> logging.Logger:
     os.makedirs(LOG_DIR, exist_ok=True)
@@ -65,8 +66,14 @@ def get_or_create_rag(embedding_model: str) -> RAG:
     return rag_instances[embedding_model]
 
 def compute_evaluation_summary(embedding_model: str) -> EvaluateResponse:
-    with open("evaluation.json", "r") as f:
-        evaluation = json.load(f)
+    try:
+        with open(EVALUATION_FILE_PATH, "r") as f:
+            evaluation = json.load(f)
+    except FileNotFoundError as e:
+        raise RuntimeError(
+            f"Evaluation file not found at '{EVALUATION_FILE_PATH}'. "
+            f"Set EVALUATION_FILE env var or place evaluation.json under 'files/'."
+        ) from e
 
     rag = get_or_create_rag(embedding_model)
 
@@ -94,7 +101,7 @@ def compute_evaluation_summary(embedding_model: str) -> EvaluateResponse:
         retrieval_s = (time.perf_counter() - q_start)
         context = "\n".join(r.get("text", "") for r in results)
         gen_start = time.perf_counter()
-        generated_answer = rag.generate(question, context)
+        generated_answer = rag.generate(question, context, max_tokens = 1000)
         gen_s = (time.perf_counter() - gen_start)
 
         bleu = compute_bleu_score(generated_answer, golden_answer)
@@ -212,7 +219,7 @@ def query(req: QueryRequest) -> QueryResponse:
         retrieval_s = (time.perf_counter() - ret_start)
         context = "\n".join(r.get("text", "") for r in results)
         gen_start = time.perf_counter()
-        answer = rag.generate(req.question, context)
+        answer = rag.generate(req.question, context, max_tokens = 1000)
         gen_s = (time.perf_counter() - gen_start)
         total_s = (time.perf_counter() - req_start)
 

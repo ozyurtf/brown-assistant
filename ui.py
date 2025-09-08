@@ -118,8 +118,8 @@ if search_clicked:
             
             try:
                 retrieval_time_seconds = None
-                current_model_display = model_options.get(selected_embedding_model, selected_embedding_model)
-                with st.spinner(f"Retrieving with {current_model_display}"):
+                current_model_display = model_options.get(selected_embedding_model, '')
+                with st.spinner(f"Retrieving with {current_model_display} and generating answer."):
                     start_time = time.perf_counter()
                     response = requests.post(
                         f"{API_BASE}/query", 

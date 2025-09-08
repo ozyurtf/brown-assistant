@@ -9,6 +9,8 @@ import chromadb
 from chromadb.config import Settings
 from utils import format_course, count_tokens
 from langchain_openai import OpenAIEmbeddings
+from dotenv import load_dotenv
+load_dotenv()
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -142,7 +144,8 @@ class VectorStore:
         st_embeddings = embeddings_dict['sentence_embedding_model']
         st_embeddings = st_embeddings / np.linalg.norm(st_embeddings, axis=1, keepdims=True)
         st_metadata = [{**meta, 'embedding_model': 'sentence_transformer'} for meta in all_metadata]
-        st_ids = [f"st_{i}" for i in range(len(all_chunks))]
+        st_offset = self.st_collection.count()
+        st_ids = [f"st_{st_offset + i}" for i in range(len(all_chunks))]
         
         self.st_collection.add(ids=st_ids, documents=all_chunks, embeddings=st_embeddings.tolist(), metadatas=st_metadata)
         
@@ -150,14 +153,14 @@ class VectorStore:
         openai_embeddings = embeddings_dict['openai_embedding_model']
         openai_embeddings = openai_embeddings / np.linalg.norm(openai_embeddings, axis=1, keepdims=True)
         openai_metadata = [{**meta, 'embedding_model': 'openai'} for meta in all_metadata]
-        openai_ids = [f"openai_{i}" for i in range(len(all_chunks))]
+        openai_offset = self.openai_collection.count()
+        openai_ids = [f"openai_{openai_offset + i}" for i in range(len(all_chunks))]
         
         self.openai_collection.add(ids=openai_ids, documents=all_chunks, embeddings=openai_embeddings.tolist(), metadatas=openai_metadata)
         
         # Store for later use
         self.chunks.extend(all_chunks)
         self.metadata.extend(all_metadata)
-        self.bulletin_count = len(all_chunks)
         
         print(f"Processed {len(all_chunks)} chunks from {len(bulletin)} bulletin entries")
 
@@ -185,7 +188,8 @@ class VectorStore:
         st_embeddings = embeddings_dict['sentence_embedding_model']
         st_embeddings = st_embeddings / np.linalg.norm(st_embeddings, axis=1, keepdims=True)
         st_metadata = [{**meta, 'embedding_model': 'sentence_transformer'} for meta in cab_metas]
-        st_ids = [f"st_{self.bulletin_count + i}" for i in range(len(cab_chunks))]
+        st_offset = self.st_collection.count()
+        st_ids = [f"st_{st_offset + i}" for i in range(len(cab_chunks))]
         
         self.st_collection.add(ids=st_ids, documents=cab_chunks, embeddings=st_embeddings.tolist(), metadatas=st_metadata)
         
@@ -193,7 +197,8 @@ class VectorStore:
         openai_embeddings = embeddings_dict['openai_embedding_model']
         openai_embeddings = openai_embeddings / np.linalg.norm(openai_embeddings, axis=1, keepdims=True)
         openai_metadata = [{**meta, 'embedding_model': 'openai'} for meta in cab_metas]
-        openai_ids = [f"openai_{self.bulletin_count + i}" for i in range(len(cab_chunks))]
+        openai_offset = self.openai_collection.count()
+        openai_ids = [f"openai_{openai_offset + i}" for i in range(len(cab_chunks))]
         
         self.openai_collection.add(ids=openai_ids, documents=cab_chunks, embeddings=openai_embeddings.tolist(), metadatas=openai_metadata)
         
@@ -214,10 +219,10 @@ class VectorStore:
         print(f"Vector store saved to Chroma (persistent) and {filepath}.pkl")
 
 def main():           
-    with open('cab.json', 'r') as cab_file:
+    with open('files/cab.json', 'r') as cab_file:
         cab = json.load(cab_file)
 
-    with open('bulletin.json', 'r') as bulletin_file:
+    with open('files/bulletin.json', 'r') as bulletin_file:
         bulletin = json.load(bulletin_file)
     
     vector_store = VectorStore(persist_path='vector_store')
