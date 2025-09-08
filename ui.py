@@ -4,15 +4,8 @@ import requests
 import streamlit as st
 from utils import map_code_to_dept_cab, map_code_to_dept_bulletin
 
-# Load environment variables from .env if available
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except Exception:
-    pass
-
 API_BASE = os.getenv("API_BASE", "http://localhost:8000")
-REQUEST_TIMEOUT = 180  # Consistent timeout for all API requests
+REQUEST_TIMEOUT = 180  
 
 @st.cache_data(show_spinner=False)
 def fetch_evaluation(embedding_model: str):
@@ -81,10 +74,10 @@ with st.sidebar:
     st.divider()
     st.header("Filters")
     
-    bulletin_opts = list(bulletin_code_to_dept_map.keys())
+    bulletin_opts = [None] +list(bulletin_code_to_dept_map.keys())
     bulletin_department = st.selectbox("Bulletin Department", bulletin_opts, index=0)
 
-    cab_opts = list(cab_code_to_dept_map.keys())
+    cab_opts = [None] + list(cab_code_to_dept_map.keys())
     cab_department = st.selectbox("CAB Department", cab_opts, index=0)
 
     
@@ -108,8 +101,8 @@ if search_clicked:
         st.warning("Please enter a question.")
     else:
         # Process department selections
-        b_dept = None if bulletin_department == "Any" else bulletin_code_to_dept_map[bulletin_department].lower()
-        c_dept = None if cab_department == "Any" else cab_code_to_dept_map[cab_department]
+        b_dept = None if bulletin_department == None else bulletin_code_to_dept_map[bulletin_department].lower()
+        c_dept = None if cab_department == None else cab_code_to_dept_map[cab_department]
         
         if not b_dept and not c_dept:
             st.warning("Select at least one department (Bulletin or CAB).")
@@ -216,15 +209,15 @@ if evaluate_clicked:
                 return "N/A"
 
         bleu_score = format_score(eval_data.get('bleu_score', 0.0))
-        exact_match_score = format_score(eval_data.get('exact_match_score', 0.0))
-
+        rouge_score = format_score(eval_data.get('rouge_score', 0.0))
+        
         st.subheader("Evaluation Metrics")
         st.write(f"Model: **{current_model_display or selected_embedding_model}**")
-        m1, m2 = st.columns(2)
+        m1, m2= st.columns(2)
         with m1:
             st.metric("BLEU Score", bleu_score)
         with m2:
-            st.metric("Exact Match", exact_match_score)
+            st.metric("ROUGE Score", rouge_score)
         st.caption("Averages computed on evaluation.json")
     else:
         st.error(f"Evaluation not available for {current_model_display or selected_embedding_model}")

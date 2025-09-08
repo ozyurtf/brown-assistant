@@ -12,7 +12,6 @@ class QueryRequest(BaseModel):
     rerank_model_name: Optional[str] = Field(None, description="CrossEncoder model name")
     embedding_model: str = "sentence_transformer"  
 
-
 class RetrievedDocument(BaseModel):
     text: str
     metadata: Optional[Dict[str, Any]] = None
@@ -26,8 +25,10 @@ class EvaluateRequest(BaseModel):
     question: Optional[str] = None
     answer: Optional[str] = None
     context: List[str] = Field(default_factory=list)
+    embedding_model: str = "sentence_transformer"
+    force: bool = False
 
 class EvaluateResponse(BaseModel):
     bleu_score: float = Field(..., ge=0.0, le=1.0)
-    exact_match_score: float = Field(..., ge=0.0, le=1.0)
+    rouge_score: float = Field(..., ge=0.0, le=1.0)
     embedding_model: str = "sentence_transformer"  

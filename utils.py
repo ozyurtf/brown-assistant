@@ -92,22 +92,42 @@ def format_course(cab):
                 course_info_all.append(course_info)
     return course_info_all
 
-def exact_match(prediction: str, reference: str) -> float:
-    
-    def normalize(text):
-        return re.sub(r"\s+", " ", text.strip().lower())
+def compute_rouge_score(prediction: str, reference: str) -> float:
+    """
+    Compute ROUGE-L F1 score between a prediction and a reference.
 
-    prediction = normalize(prediction)
-    reference = normalize(reference)
+    This implementation tokenizes on words, computes the Longest Common
+    Subsequence (LCS) length, then returns the F1 score derived from
+    precision and recall based on LCS.
+    """
+    # Normalize and tokenize
+    pred_tokens = word_tokenize((prediction or "").lower())
+    ref_tokens = word_tokenize((reference or "").lower())
 
-    evaluator = load_evaluator("exact_match")
-    result = evaluator.evaluate_strings(prediction=prediction, reference=reference)
+    if not pred_tokens or not ref_tokens:
+        return 0.0
 
-    if isinstance(result, dict):
-        return float(result["score"])
-    return float(result)
+    # Compute LCS length using dynamic programming
+    n = len(pred_tokens)
+    m = len(ref_tokens)
+    dp = [[0] * (m + 1) for _ in range(n + 1)]
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            if pred_tokens[i - 1] == ref_tokens[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1] + 1
+            else:
+                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
 
-def bleu_score(prediction: str, reference: str) -> float:
+    lcs_len = float(dp[n][m])
+    precision = lcs_len / float(n) if n > 0 else 0.0
+    recall = lcs_len / float(m) if m > 0 else 0.0
+    if precision + recall == 0:
+        return 0.0
+
+    rouge_l_f1 = 2 * precision * recall / (precision + recall)
+    return float(rouge_l_f1)
+
+def compute_bleu_score(prediction: str, reference: str) -> float:
     """
     Compute sentence-level BLEU score for a single prediction and reference.
 

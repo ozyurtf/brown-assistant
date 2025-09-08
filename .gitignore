@@ -226,3 +226,4 @@ analysis.ipynb
 .DS_Store
 __pycache__/
 vector_store
+logs/

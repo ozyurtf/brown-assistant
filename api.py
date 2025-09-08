@@ -1,13 +1,39 @@
 from fastapi import FastAPI, HTTPException, Query
 from typing import List, Optional, Dict
 import os
+import time
+import logging
+from datetime import datetime
 import json
 from statistics import mean
 from models import * 
 from rag import RAG
-from utils import bleu_score as compute_bleu_score, exact_match as compute_exact_match
+from utils import compute_bleu_score, compute_rouge_score
 
 app = FastAPI(title="RAG API", version="1.0.0")
+
+LOGGER_NAME = "rag_logger"
+LOG_DIR = os.path.join(os.getcwd(), "logs")
+LOG_FILE = os.path.join(LOG_DIR, "records.txt")
+
+def init_logger() -> logging.Logger:
+    os.makedirs(LOG_DIR, exist_ok=True)
+    logger = logging.getLogger(LOGGER_NAME)
+    logger.setLevel(logging.INFO)
+    if not logger.handlers:
+        handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
+        formatter = logging.Formatter("%(message)s")
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+    return logger
+
+logger = init_logger()
+
+def log_block(lines: List[str]) -> None:
+    try:
+        logger.info("\n".join(lines) + "\n")
+    except Exception:
+        pass
 
 # Store multiple RAG instances for different models
 rag_instances: Dict[str, RAG] = {}
@@ -45,7 +71,8 @@ def compute_evaluation_summary(embedding_model: str) -> EvaluateResponse:
     rag = get_or_create_rag(embedding_model)
 
     bleu_scores: List[float] = []
-    exact_match_scores: List[float] = []
+    rouge_scores: List[float] = []
+    eval_start = time.perf_counter()
 
     for data in evaluation:
         question = data.get('question', '')
@@ -53,6 +80,7 @@ def compute_evaluation_summary(embedding_model: str) -> EvaluateResponse:
         bulletin_department = data.get('bulletin_department', '')
         cab_department = data.get('cab_department', '')
 
+        q_start = time.perf_counter()
         results = rag.retrieve(
             query=question,
             bulletin_department=bulletin_department,
@@ -63,21 +91,74 @@ def compute_evaluation_summary(embedding_model: str) -> EvaluateResponse:
             rerank_min_score=0.2,
             rerank_model_name="BAAI/bge-reranker-base",
         )
-
+        retrieval_s = (time.perf_counter() - q_start)
         context = "\n".join(r.get("text", "") for r in results)
+        gen_start = time.perf_counter()
         generated_answer = rag.generate(question, context)
+        gen_s = (time.perf_counter() - gen_start)
 
         bleu = compute_bleu_score(generated_answer, golden_answer)
-        exact_match = compute_exact_match(generated_answer, golden_answer)
+        rouge = compute_rouge_score(generated_answer, golden_answer)
 
         bleu_scores.append(float(bleu))
-        exact_match_scores.append(float(exact_match))
+        rouge_scores.append(float(rouge))
 
-    return EvaluateResponse(
+        # Log per-sample evaluation details
+        try:
+            ts = datetime.utcnow().isoformat() + "Z"
+            lines = [
+                "----- EVAL SAMPLE -----",
+                f"timestamp: {ts}",
+                f"embedding_model: {embedding_model}",
+                f"question: {question}",
+                f"bulletin_department: {bulletin_department}",
+                f"cab_department: {cab_department}",
+                f"retrieval_time_s: {retrieval_s:.3f}",
+                f"generation_time_s: {gen_s:.3f}",
+                f"retrieved_count: {len(results)}",
+                f"bleu: {float(bleu):.4f}",
+                f"rouge_l_f1: {float(rouge):.4f}",
+                "generated_answer:",
+                f"  {generated_answer}",
+                "top_results:",
+            ]
+            for idx, r in enumerate(results[:3], start=1):
+                meta = r.get("metadata", {}) or {}
+                src = meta.get("source", "")
+                dept = meta.get("department", "")
+                sim = r.get("similarity_score", 0.0)
+                lines.append(f"  {idx}) source={src} dept={dept} sim={sim}")
+            lines.append("------------------------")
+            log_block(lines)
+        except Exception:
+            pass
+
+    total_eval_s = (time.perf_counter() - eval_start)
+
+    summary = EvaluateResponse(
         bleu_score=float(mean(bleu_scores)) if bleu_scores else 0.0,
-        exact_match_score=float(mean(exact_match_scores)) if exact_match_scores else 0.0,
+        rouge_score=float(mean(rouge_scores)) if rouge_scores else 0.0,
         embedding_model=embedding_model
     )
+
+    # Log summary
+    try:
+        ts = datetime.utcnow().isoformat() + "Z"
+        lines = [
+            "----- EVAL SUMMARY -----",
+            f"timestamp: {ts}",
+            f"embedding_model: {embedding_model}",
+            f"num_samples: {len(bleu_scores)}",
+            f"avg_bleu: {summary.bleu_score:.4f}",
+            f"avg_rouge_l_f1: {summary.rouge_score:.4f}",
+            f"total_time_s: {total_eval_s:.3f}",
+            "-------------------------",
+        ]
+        log_block(lines)
+    except Exception:
+        pass
+
+    return summary
 
 @app.on_event("startup")
 def startup() -> None:
@@ -98,21 +179,9 @@ def startup() -> None:
             try:
                 if embedding_model in rag_instances:
                     cached_evals[embedding_model] = compute_evaluation_summary(embedding_model)
-                    print("--------------------------------")
-                    print(cached_evals[embedding_model])
-                    print("--------------------------------")
                     print(f"Precomputed evaluation for {embedding_model}")
             except Exception as e:
                 print(f"Failed to precompute evaluation for {embedding_model}: {e}")
-
-@app.get("/models")
-def get_available_models():
-    """Return list of available embedding models."""
-    return {
-        "available_models": list(AVAILABLE_MODELS.keys()),
-        "model_details": AVAILABLE_MODELS,
-        "default_model": DEFAULT_EMBEDDING_MODEL
-    }
 
 @app.post("/query", response_model=QueryResponse)
 def query(req: QueryRequest) -> QueryResponse:
@@ -126,8 +195,10 @@ def query(req: QueryRequest) -> QueryResponse:
         )
     
     try:
+        req_start = time.perf_counter()
         rag = get_or_create_rag(embedding_model)
         
+        ret_start = time.perf_counter()
         results = rag.retrieve(
             query=req.question,
             bulletin_department = req.bulletin_department,
@@ -138,8 +209,42 @@ def query(req: QueryRequest) -> QueryResponse:
             rerank_min_score=0.2,
             rerank_model_name = req.rerank_model_name,
         )
+        retrieval_s = (time.perf_counter() - ret_start)
         context = "\n".join(r.get("text", "") for r in results)
+        gen_start = time.perf_counter()
         answer = rag.generate(req.question, context)
+        gen_s = (time.perf_counter() - gen_start)
+        total_s = (time.perf_counter() - req_start)
+
+        # Log query details
+        try:
+            ts = datetime.utcnow().isoformat() + "Z"
+            lines = [
+                "-------- QUERY ---------",
+                f"timestamp: {ts}",
+                f"embedding_model: {embedding_model}",
+                f"question: {req.question}",
+                f"bulletin_department: {req.bulletin_department}",
+                f"cab_department: {req.cab_department}",
+                f"retrieval_time_s: {retrieval_s:.3f}",
+                f"generation_time_s: {gen_s:.3f}",
+                f"total_time_s: {total_s:.3f}",
+                f"retrieved_count: {len(results)}",
+                "generated_answer:",
+                f"  {answer}",
+                "top_results:",
+            ]
+            for idx, r in enumerate(results[:3], start=1):
+                meta = r.get("metadata", {}) or {}
+                src = meta.get("source", "")
+                dept = meta.get("department", "")
+                sim = r.get("similarity_score", 0.0)
+                lines.append(f"  {idx}) source={src} dept={dept} sim={sim}")
+            lines.append("------------------------")
+            log_block(lines)
+        except Exception:
+            pass
+
         return QueryResponse(answer=answer, retrieved=results)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -156,7 +261,6 @@ def evaluate(req: EvaluateRequest) -> EvaluateResponse:
         )
     
     if embedding_model not in cached_evals:
-        # Compute on demand if not cached
         try:
             cached_evals[embedding_model] = compute_evaluation_summary(embedding_model)
         except Exception as e:
