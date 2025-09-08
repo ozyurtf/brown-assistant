@@ -4,6 +4,7 @@ import re
 import requests
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from utils import map_code_to_dept_cab
 
 API_URL = "https://cab.brown.edu/api/"
 HEADERS = {
@@ -131,24 +132,29 @@ def build_output(results: list[dict], workers: int) -> dict:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--terms", nargs="+", default=["202510"])
-    parser.add_argument("--dept", default=None)
     parser.add_argument("--workers", type=int, default=12)
     parser.add_argument("--out", default="cab.json")
     args = parser.parse_args()
 
-    print(f"[main] terms={args.terms} dept={args.dept} workers={args.workers}", flush=True)
     all_results: list[dict] = []
     start = time.time()
-    with ThreadPoolExecutor(max_workers=min(len(args.terms), max(1, args.workers))) as pool:
-        futs = [pool.submit(search_term, t, args.dept) for t in args.terms]
+    targets: list[tuple[str, str | None]] = []
+    
+    cab_code_to_dept_map = map_code_to_dept_cab()
+    dept_codes = list(cab_code_to_dept_map.values())
+    targets = [(t, d) for t in args.terms for d in dept_codes]
+    print(f"[main] discovered departments={len(dept_codes)} total_targets={len(targets)}", flush=True)
+
+    with ThreadPoolExecutor(max_workers=max(1, args.workers)) as pool:
+        futs = [pool.submit(search_term, term, dept) for term, dept in targets]
         for f in as_completed(futs):
             try:
                 res = f.result()
                 all_results.extend(res)
                 print(f"[main] collected batch results={len(res)} total={len(all_results)}", flush=True)
             except Exception as e:
-                print(f"[main] term search failed: {e}", flush=True)
-    print(f"[main] term searches done in {time.time()-start:.1f}s total_results={len(all_results)}", flush=True)
+                print(f"[main] search failed: {e}", flush=True)
+    print(f"[main] searches done in {time.time()-start:.1f}s total_results={len(all_results)}", flush=True)
 
     data = build_output(all_results, args.workers)
     with open(args.out, "w") as f:

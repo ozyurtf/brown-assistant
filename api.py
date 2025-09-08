@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from typing import List, Optional
 import os
 from models import * 
@@ -7,33 +7,26 @@ from rag import RAG
 app = FastAPI(title="RAG API", version="1.0.0")
 
 # Initialize RAG once
-_rag: Optional[RAG] = None
+rag: Optional[RAG] = None
 
 @app.on_event("startup")
 def _startup() -> None:
-    global _rag
+    global rag
     try:
-        _rag = RAG()
+        rag = RAG()
         # Allow overriding embedding model via env `EMBEDDING_MODEL` when loading
-        _rag.load("vector_store")
+        rag.load("vector_store")
     except Exception as e:
         # Let startup continue; requests will error until vector store exists
         print(f"[startup] RAG initialization failed: {e}")
 
 
-@app.get("/keys", response_model=List[str])
-def list_keys() -> List[str]:
-    if _rag is None or _rag.metadata is None:
-        raise HTTPException(status_code=503, detail="RAG not initialized")
-    return _rag.get_available_keys()
-
-
 @app.post("/query", response_model=QueryResponse)
 def query(req: QueryRequest) -> QueryResponse:
-    if _rag is None:
+    if rag is None:
         raise HTTPException(status_code=503, detail="RAG not initialized")
     try:
-        results = _rag.retrieve(
+        results = rag.retrieve(
             query=req.question,
             bulletin_department=req.bulletin_department,
             cab_department=req.cab_department,
@@ -41,7 +34,7 @@ def query(req: QueryRequest) -> QueryResponse:
             top_k_cab=req.top_k_cab,
         )
         context = "\n".join(r.get("text", "") for r in results)
-        answer = _rag.generate(req.question, context)
+        answer = rag.generate(req.question, context)
         return QueryResponse(answer=answer, retrieved=results)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -50,7 +43,7 @@ def query(req: QueryRequest) -> QueryResponse:
 @app.post("/evaluate", response_model=EvaluateResponse)
 def evaluate(req: EvaluateRequest) -> EvaluateResponse:
     """Simple LLM-based evaluator: ask the model to grade 0-1 with brief rationale."""
-    if _rag is None:
+    if rag is None:
         raise HTTPException(status_code=503, detail="RAG not initialized")
     try:
         from langchain_openai import ChatOpenAI

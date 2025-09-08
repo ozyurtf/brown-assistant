@@ -32,10 +32,10 @@ class RAG:
 
     def get_available_keys(self) -> List[str]:
         """Get all available bulletin keys."""
-        keys = set(meta['key'] for meta in self.metadata if isinstance(meta, dict) and 'key' in meta and meta.get('key'))
+        keys = set(meta['department'] for meta in self.metadata if isinstance(meta, dict) and 'department' in meta and meta.get('department'))
         return sorted(list(keys))
         
-    def load(self, filepath: str, model_name: str = None, persist_path: str = 'vector_store_chroma'):
+    def load(self, filepath: str, model_name: str = None, persist_path: str = 'vector_store'):
         """Load the vector store from disk."""
         # Load metadata/chunks
         with open(f"{filepath}.pkl", 'rb') as f:
@@ -82,7 +82,7 @@ class RAG:
                 n_results=max(1, top_k_bulletin),
                 include=["documents", "metadatas", "distances"],
                 where={"$and": [
-                    {"key": {"$eq": bulletin_department}},
+                    {"department": {"$eq": bulletin_department}},
                     {"source": {"$eq": "bulletin"}}
                 ]},
             )
@@ -106,7 +106,7 @@ class RAG:
                 n_results=max(1, top_k_cab),
                 include=["documents", "metadatas", "distances"],
                 where={"$and": [
-                    {"key": {"$eq": cab_department}},
+                    {"department": {"$eq": cab_department}},
                     {"source": {"$eq": "cab"}}
                 ]},
             )
@@ -184,7 +184,7 @@ def main(user_question, bulletin_department, cab_department, top_k_bulletin, top
             f.write(f"CHUNK {i} (Similarity: {result['similarity_score']:.4f}):\n")
             source_title = ''
             if isinstance(result['metadata'], dict):
-                source_title = result['metadata'].get('full_title', result['metadata'].get('key', ''))
+                source_title = result['metadata'].get('full_title', result['metadata'].get('department', ''))
             f.write(f"Source: {source_title}\n")
             f.write(f"Content to send to LLM:\n")
             f.write(f"{'=' * 50}\n")
@@ -195,17 +195,3 @@ def main(user_question, bulletin_department, cab_department, top_k_bulletin, top
     print(f"Analysis complete! Results saved to '{output_file}'")
     print("You can now open the file to read all the outputs in detail.")
     return rag.generate(user_question, context)
-    
-# Example usage
-if __name__ == "__main__":
-    # Provide both department codes explicitly
-    user_question = "I am studying Applied Mathematics. Does APMA 1650 count for my requirements?"
-    bulletin_department = "apma"  # bulletin code
-    cab_department = "APMA"       # cab code
-    top_k_bulletin, top_k_cab = (3, 5)
-    response = main(user_question, bulletin_department, cab_department, top_k_bulletin, top_k_cab)
-    print("User question:")
-    print(user_question)
-    print()
-    print("Response:")
-    print(response)

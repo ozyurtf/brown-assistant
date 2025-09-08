@@ -7,13 +7,64 @@ import pickle
 import json
 import chromadb
 from chromadb.config import Settings
-from utils import *
+from utils import format_course, count_tokens
 from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
+
 load_dotenv()
+
+def chunk_bulletin(department: str, content: str) -> List[Tuple[str, Dict]]:
+    """
+    Split content by ### headers and create chunks with metadata.
+    
+    Args:
+        department: The bulletin department (e.g., 'math', 'comp', etc.)
+        content: The full content string
+        
+    Returns:
+        List of tuples containing (chunk_text, metadata)
+    """
+    chunks = []
+    metadata = []
+
+    # Split by ### headers
+    sections = re.split(r'^###\s*', content, flags=re.MULTILINE)
+    
+    # The first section is the main content (before any ### headers)
+    if sections[0].strip():
+        main_content = sections[0].strip()
+        section_title =  'Main Content'
+        chunk = f"{section_title}\n{main_content}"
+        chunks.append(chunk)
+        
+        metadata.append({
+            'department': department,
+            'source': 'bulletin',
+        })        
+    
+    # Process sections with ### headers
+    for i, section in enumerate(sections[1:], 1):
+        if section.strip():
+            # Extract the header title (first line after ###)
+            lines = section.strip().split('\n')
+            header_title = lines[0].strip() if lines else f'Section {i}'
+            section_content = '\n'.join(lines[1:]).strip() if len(lines) > 1 else ''
+            
+            # Only add if there's actual content
+            if section_content:
+                metadata.append({
+                    'department': department,
+                    'source': 'bulletin',
+                })
+
+                section_title = header_title
+                chunk = f"{section_title}\n{section_content}"
+                chunks.append(chunk)
+    
+    return chunks, metadata
         
 class VectorStore:
-    def __init__(self, model_name: str = None, persist_path: str = 'vector_store_chroma'):
+    def __init__(self, model_name: str = None, persist_path: str = 'vector_store'):
         """
         Initialize a Chroma persistent collection and embedding model.
         Chooses backend based on model_name/env EMBEDDING_MODEL.
@@ -37,7 +88,7 @@ class VectorStore:
         self.metadata: List[Dict] = []
         self.tokenized_chunks = []
         
-    def _embed_documents(self, texts: List[str]) -> np.ndarray:
+    def embed_documents(self, texts: List[str]) -> np.ndarray:
         """
         Embed a list of texts using the configured backend.
         For OpenAI, batch by approximate token count to avoid 300k tokens/request errors.
@@ -88,17 +139,15 @@ class VectorStore:
         
         for department, content in bulletin.items():
             chunk, metadata = chunk_bulletin(department, content)
+
             all_chunks += chunk
             all_metadata += metadata
         
         # Generate embeddings for all texts
-        embeddings = self._embed_documents(all_chunks)
+        embeddings = self.embed_documents(all_chunks)
+        
         # Normalize embeddings for cosine similarity
         embeddings = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
-
-        # Tag source in metadata and store
-        for m in all_metadata:
-            m.setdefault('source', 'bulletin')
 
         # Add to Chroma
         start_id = len(self.chunks)
@@ -117,17 +166,17 @@ class VectorStore:
         """
 
         cab_chunks = format_course(cab)
-        embeddings = self._embed_documents(cab_chunks)
+        embeddings = self.embed_documents(cab_chunks)
         embeddings = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
 
         # Generate minimal metadata with source and id if present
         cab_metas: List[Dict] = []
         for term in cab.keys():
-            for dept in cab[term].keys():
-                for course in cab[term][dept]:
+            for department in cab[term].keys():
+                for course in cab[term][department]:
                     meta = {
                         'term': term,
-                        'department': dept,
+                        'department': department,
                         'course_id': course.get('course_id', ''),
                         'source': 'cab',
                     }
@@ -158,7 +207,7 @@ def main():
     with open('bulletin.json', 'r') as bulletin_file:
         bulletin = json.load(bulletin_file)
     
-    vector_store = VectorStore(model_name=os.getenv('EMBEDDING_MODEL', ''), persist_path='vector_store_chroma')
+    vector_store = VectorStore(model_name=os.getenv('EMBEDDING_MODEL', ''), persist_path='vector_store')
     vector_store.process_bulletin(bulletin)
     vector_store.process_cab(cab)
     vector_store.save("vector_store")

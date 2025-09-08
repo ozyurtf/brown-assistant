@@ -4,7 +4,23 @@ from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode
 import requests
 from bs4 import BeautifulSoup
 import re
-from utils import * 
+from typing import List, Tuple
+
+def get_bulletin_codes():
+   url = "https://bulletin.brown.edu/the-college/concentrations/"
+   response = requests.get(url)
+   soup = BeautifulSoup(response.content, 'html.parser')
+   
+   concentration_links = soup.find_all('a', href=re.compile(r'/the-college/concentrations/[a-zA-Z]+/$'))
+   
+   concentration_codes = []
+   for link in concentration_links:
+       href = link.get('href')
+       match = re.search(r'/the-college/concentrations/([a-zA-Z]+)/', href)
+       if match:
+           concentration_codes.append(match.group(1))
+   
+   return sorted(list(set(concentration_codes)))    
 
 def clean_content(content):
     """
@@ -102,7 +118,7 @@ def save_bulletin_to_json(bulletin, filename="bulletin.json"):
 
 def main():
     """Main function to scrape concentrations and save to JSON."""
-    codes = get_brown_concentrations()
+    codes = get_bulletin_codes()
     urls = [f"https://bulletin.brown.edu/the-college/concentrations/{code}/" for code in codes]
     print(f"Found {len(codes)} concentration codes")
     bulletin = asyncio.run(

@@ -225,4 +225,4 @@ bulletin.json
 analysis.ipynb
 .DS_Store
 __pycache__/
-vector_store_chroma/
+vector_store

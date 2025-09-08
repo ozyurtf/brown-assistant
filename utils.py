@@ -4,52 +4,57 @@ from bs4 import BeautifulSoup
 import re
 from typing import List, Tuple, Dict
 
-def chunk_bulletin(department: str, content: str) -> List[Tuple[str, Dict]]:
-    """
-    Split content by ### headers and create chunks with metadata.
+def map_code_to_dept_cab():
+    """Scrape the main page to find department codes"""
+    url = "https://cab.brown.edu/"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Safari/605.1.15'
+    }
     
-    Args:
-        department: The bulletin department (e.g., 'math', 'comp', etc.)
-        content: The full content string
-        
-    Returns:
-        List of tuples containing (chunk_text, metadata)
-    """
-    chunks = []
-    metadata = []
-
-    # Split by ### headers
-    sections = re.split(r'^###\s*', content, flags=re.MULTILINE)
+    response = requests.get(url, headers=headers)
+    soup = BeautifulSoup(response.text, 'html.parser')
     
-    # The first section is the main content (before any ### headers)
-    if sections[0].strip():
-        main_content = sections[0].strip()
-        section_title =  'Main Content'
-        chunk = f"{section_title}\n{main_content}"
-        chunks.append(chunk)
-        
-        metadata.append({
-            'department': department,
-        })        
+    departments = {}
+    selects = soup.find_all('select')
     
-    # Process sections with ### headers
-    for i, section in enumerate(sections[1:], 1):
-        if section.strip():
-            # Extract the header title (first line after ###)
-            lines = section.strip().split('\n')
-            header_title = lines[0].strip() if lines else f'Section {i}'
-            section_content = '\n'.join(lines[1:]).strip() if len(lines) > 1 else ''
-            
-            # Only add if there's actual content
-            if section_content:
-                metadata.append({
-                    'department': department,
-                })
-                section_title = header_title
-                chunk = f"{section_title}\n{section_content}"
-                chunks.append(chunk)
+    for select in selects:
+        if 'dept' in str(select).lower():
+            options = select.find_all('option')
+            for option in options:
+                if option.get('value') and len(option.get('value')) > 1:
+                    departments[option.text.strip()] = option.get('value')
     
-    return chunks, metadata
+    return departments
+    
+def map_code_to_dept_bulletin():
+    """Scrape Brown bulletin to get department codes and names"""
+    url = "https://bulletin.brown.edu/the-college/concentrations/"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Safari/605.1.15'
+    }
+    
+    response = requests.get(url, headers=headers)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    
+    departments = {}
+    
+    # Look for links to concentration pages
+    links = soup.find_all('a', href=True)
+    
+    for link in links:
+        href = link.get('href')
+        if href and '/concentrations/' in href and href.endswith('/'):
+            # Extract department code from URL
+            match = re.search(r'/concentrations/([a-zA-Z]+)/?$', href)
+            if match:
+                dept_code = match.group(1)
+                dept_name = link.text.strip()
+                
+                # Skip empty names or navigation links
+                if dept_name and len(dept_name) > 2 and not dept_name.lower() in ['home', 'back', 'next']:
+                    departments[dept_name] = dept_code
+    
+    return departments
 
 def count_tokens(text: str, model: str = "gpt-4o-mini") -> int:
     try:
@@ -57,22 +62,6 @@ def count_tokens(text: str, model: str = "gpt-4o-mini") -> int:
     except KeyError:
         enc = tiktoken.get_encoding("o200k_base")
     return len(enc.encode(text))
-
-def get_brown_concentrations():
-   url = "https://bulletin.brown.edu/the-college/concentrations/"
-   response = requests.get(url)
-   soup = BeautifulSoup(response.content, 'html.parser')
-   
-   concentration_links = soup.find_all('a', href=re.compile(r'/the-college/concentrations/[a-zA-Z]+/$'))
-   
-   concentration_codes = []
-   for link in concentration_links:
-       href = link.get('href')
-       match = re.search(r'/the-college/concentrations/([a-zA-Z]+)/', href)
-       if match:
-           concentration_codes.append(match.group(1))
-   
-   return sorted(list(set(concentration_codes)))    
 
 def format_course(cab):
     course_info_all = []
