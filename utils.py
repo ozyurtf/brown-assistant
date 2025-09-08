@@ -3,6 +3,10 @@ import requests
 from bs4 import BeautifulSoup
 import re
 from typing import List, Tuple, Dict
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+from langchain.evaluation import load_evaluator
+from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
+from nltk.tokenize import word_tokenize
 
 def map_code_to_dept_cab():
     """Scrape the main page to find department codes"""
@@ -25,7 +29,7 @@ def map_code_to_dept_cab():
                     departments[option.text.strip()] = option.get('value')
     
     return departments
-    
+
 def map_code_to_dept_bulletin():
     """Scrape Brown bulletin to get department codes and names"""
     url = "https://bulletin.brown.edu/the-college/concentrations/"
@@ -87,3 +91,37 @@ def format_course(cab):
                 course_info = "\n".join(output_lines)
                 course_info_all.append(course_info)
     return course_info_all
+
+def exact_match(prediction: str, reference: str) -> float:
+    
+    def normalize(text):
+        return re.sub(r"\s+", " ", text.strip().lower())
+
+    prediction = normalize(prediction)
+    reference = normalize(reference)
+
+    evaluator = load_evaluator("exact_match")
+    result = evaluator.evaluate_strings(prediction=prediction, reference=reference)
+
+    if isinstance(result, dict):
+        return float(result["score"])
+    return float(result)
+
+def bleu_score(prediction: str, reference: str) -> float:
+    """
+    Compute sentence-level BLEU score for a single prediction and reference.
+
+    Args:
+        prediction (str): model-generated text
+        reference (str): ground-truth text
+
+    Returns:
+        float: BLEU score (0–1 range)
+    """
+    smoothie = SmoothingFunction().method4
+    
+    # Tokenize and lowercase
+    prediction_tokens = word_tokenize(prediction.lower())
+    reference_tokens = [word_tokenize(reference.lower())]
+
+    return sentence_bleu(reference_tokens, prediction_tokens, smoothing_function=smoothie)
