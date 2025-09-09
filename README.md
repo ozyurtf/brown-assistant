@@ -111,7 +111,7 @@ Copy example environment and edit:
 cp env.example .env
 ```
 
-Open .env and set `OPENAI_API_KEY`
+Open .env and set `OPENAI_API_KEY` and `API_TOKEN`
 
 **2) Build and Run**
 
