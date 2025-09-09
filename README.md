@@ -1,7 +1,7 @@
 The goal of this project is implementing a Retrieval-Augmented Generation (RAG) system that helps all students at Brown University explore the courses that are open in the semester and understand their degree requirements by combining two sources:
 
-- CAB (Courses @ Brown): Courses in different departments, their descriptions, schedules and meeting times, instructors, descriptions, etc.
-- Bulletin: Concentration requirements, academic rules and policies
+- CAB (Courses @ Brown): Courses in different departments, their descriptions, schedules and meeting times, instructors, descriptions, etc. These can be found [here](https://cab.brown.edu)
+- Bulletin: Concentration requirements, academic rules and policies. These can be found [here](https://bulletin.brown.edu/the-college/concentrations/)
 
 A FastAPI backend is implemented to handle data processing, serve queries efficiently, and evaluate the performance of the generator. In addition, a Streamlit UI is built to provide a simple, interactive interface for users. 
 
@@ -16,8 +16,8 @@ A FastAPI backend is implemented to handle data processing, serve queries effici
 2) **Indexing and Vectorization**
 - `indexing.py`: Reads the data in files/bulletin.json and `files/cab.json`
     - Data is chunked and embedded with two embedding models separately:
-        - Sentence Transformer (all-MiniLM-L6-v2)
-        - OpenAI Embedding Model (text-embedding-3-large)
+        - Sentence Transformer (`all-MiniLM-L6-v2`)
+        - OpenAI Embedding Model (`text-embedding-3-large`)
     - Embeddings are normalized and stored in Chroma vector store along with metadata
     - vector_store.pkl stores human-readable chunks and metadata used by the RAG runtime
 
@@ -43,31 +43,31 @@ In addition,
 ## Models Used
 
 1) **Bi-Encoder Embeddings for Indexing and Retrieval**
-  - Sentence Transformer: all-MiniLM-L6-v2
+  - Sentence Transformer: `all-MiniLM-L6-v2`
     - Pros: Local, free, lightweight (~22.7 million parameters), fast, quick inference and efficient deployment
     - Cons: Might miss hard-to-catch patterns and important details that can be captured by larger models.
 
-  - OpenAI: text-embedding-3-large
+  - OpenAI: `text-embedding-3-large`
     - Pros: Rich and high-quality embeddings, better context understanding, can capture subtle details
     - Cons: Dependency on API, computational overhead, higher cost
 
 2) **Cross-Encdoer Reranking for Retrieval**
-  - CrossEncoder: BAAI/bge-reranker-base
+  - CrossEncoder: `BAAI/bge-reranker-base`
     - Pros: High accruacy for ranking, open source, free
     - Cons: Slow inference, compute intensive
 
 3) **Generator**
-  - ChatOpenAI: gpt-4o-mini
+  - ChatOpenAI: `gpt-4o-mini`
     - Pros: High quality generation, reasoning ability, easy integration
     - Cons: API dependency, hallucination risk, cost per call
 
 - Evaluation
     - Retriever 
-        - Precision (Not implemented yet): The fraction of the retrieved chunks that overlap with the original chunks
-        - Recall (Not implemented yet): The fraction of the original chunks that overlap with the retrieved chunks
+        - `Precision` **(Not implemented yet):** The fraction of the retrieved chunks that overlap with the original chunks
+        - `Recall` **(Not implemented yet):** The fraction of the original chunks that overlap with the retrieved chunks
     - Generator
-        - BLEU: Measures how much generated text overlaps with original text in terms of exact word sequences
-        - ROUGE-L (F-1): Finds the longest sequence of words in both generated text and original text (in the same order) and calculates F-1 score which is the balance of the fraction of the original text that is covered by the predicted text (Recall) and the fraction of the predicted text that is covered by the original text (Precision)
+        - `BLEU`: Measures how much generated text overlaps with original text in terms of exact word sequences
+        - `ROUGE-L (F-1)`: Finds the longest sequence of words in both generated text and original text (in the same order) and calculates F-1 score which is the balance of the fraction of the original text that is covered by the predicted text (Recall) and the fraction of the predicted text that is covered by the original text (Precision)
 
 ## How to Add New Addition Sets to Measure Evaluation 
 
