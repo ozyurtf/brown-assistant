@@ -69,6 +69,10 @@ In addition,
         - BLEU: Measures how much generated text overlaps with original text in terms of exact word sequences
         - ROUGE-L (F-1): Finds the longest sequence of words in both generated text and original text (in the same order) and calculates F-1 score which is the balance of the fraction of the original text that is covered by the predicted text (Recall) and the fraction of the predicted text that is covered by the original text (Precision)
 
+## How to Add New Addition Sets to Measure Evaluation 
+
+To add a new dataset to measure how well the generated text performs with it, you can enter your question, department for Bulletin, department for CAB, and answer into the `evaluation.json` file in the `files` folder, and click the `Evaluate` button in the UI.
+
 ## Running Locally
 
 **1) Create .env** 
@@ -81,7 +85,7 @@ cp env.example .env
 
 Open .env and set `OPENAI_API_KEY`
 
-**2) Build and run**
+**2) Build and Run**
 
 ```bash
 docker-compose up --build
@@ -89,8 +93,8 @@ docker-compose up --build
 
 **3) Access**
 
-- UI: http://localhost:8501
-- API: http://localhost:8000/docs
+- UI: `http://localhost:8501`
+- API: `http://localhost:8000/docs`
 
 First run notes
 - Data extraction and initial model loads can take several minutes
@@ -98,13 +102,13 @@ First run notes
 
 ## Running on AWS EC2
 
-**1) Create EC2 instance**
+**1) Create EC2 Instance**
 - AMI: Ubuntu 22.04 LTS
 - Instance type: t3.medium minimum (t3.large recommended)
 - Storage: 20–30 GB
 - Security group rules: allow ports 22 (SSH from your IP), 8000, 8501 (0.0.0.0/0 for testing), or front with an ALB/NGINX later
 
-**2) Connect and prepare the machine**
+**2) Connect and Prepare the Machine**
   
 ```bash  
 ssh -i your-key.pem ubuntu@your-public-ip
@@ -126,7 +130,7 @@ exit
 ssh -i your-key.pem ubuntu@your-public-ip
 ```
 
-**3) Deploy code**
+**3) Deploy Code**
 
 Clone your repository and configure environment:
 
@@ -137,7 +141,7 @@ cp env.example .env
 nano .env   # set OPENAI_API_KEY and any other variables
 ```
 
-**4) Launch services**
+**4) Launch Services**
   
 ```bash
 docker-compose up -d --build
@@ -145,8 +149,8 @@ docker-compose up -d --build
 
 **5) Access**
 
-- UI at http://your-public-ip:8501
-- API docs at http://your-public-ip:8000/docs
+- UI at `http://your-public-ip:8501`
+- API docs at `http://your-public-ip:8000/docs`
 
 
 ## Data Sources and Filtering Guidance
