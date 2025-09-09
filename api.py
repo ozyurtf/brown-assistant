@@ -118,7 +118,7 @@ def compute_evaluation_summary(embedding_model: str) -> EvaluateResponse:
             top_k_department = 3,
             rerank_top_n = None,
             rerank_min_score = None,
-            rerank_model_name = None,
+            rerank_model_name = "BAAI/bge-reranker-base",
         )
         retrieval_s = (time.perf_counter() - q_start)
         context = "\n".join(r.get("text", "") for r in results)
@@ -187,7 +187,7 @@ def query(req: QueryRequest, token: str = Depends(verify_token)) -> QueryRespons
             top_k_department = 3,
             rerank_top_n = None,
             rerank_min_score = None,
-            rerank_model_name = None,
+            rerank_model_name = "BAAI/bge-reranker-base",
         )
         retrieval_s = (time.perf_counter() - ret_start)
         context = "\n".join(r.get("text", "") for r in results)
