@@ -9,11 +9,11 @@ A FastAPI backend is implemented to handle data processing, serve queries effici
 
 ## End-to-End Workflow
 
-1) Data acquisition
+1) **Data acquisition**
 - `bulletin.py`: Scrapes Bulletin concentration pages concurrently using `crawl4ai`, processes, cleans, and organizes it and writes the data into `files/bulletin.json`
 - `cab.py`: Queries the CAB API for all available departments in parallel for Fall 2025 term, processes, cleans and organizes it and writes the results into `files/cab.json`
 
-2) Indexing and vectorization
+2) **Indexing and Vectorization**
 - `indexing.py`: Reads the data in files/bulletin.json and `files/cab.json`
     - Data is chunked and embedded with two embedding models separately:
         - Sentence Transformer (all-MiniLM-L6-v2)
@@ -21,13 +21,13 @@ A FastAPI backend is implemented to handle data processing, serve queries effici
     - Embeddings are normalized and stored in Chroma vector store along with metadata
     - vector_store.pkl stores human-readable chunks and metadata used by the RAG runtime
 
-3) Retrieval and generation
+3) **Retrieval and generation**
 - `rag.py`: Core RAG class with methods:
   - load: Loads the persisted vector store, selects the appropriate collection based on the chosen embedding model
   - retrieve: Filters the chunks in the vector store based on the department specified by the user, retrieves the most similar/relevant chunks based on the user query and selected embedding model, and reranks the retrieved chunks with CrossEncoder model
   - `generate`: Calls ChatOpenAI to produce final answer based on user query and the retrieved context
 
-4) Serving
+4) **Serving**
 - `api.py`: Initializes and caches a RAG instance per embedding backend (via `rag_instances` and `get_or_create_rag`) so models and Chroma collections load once and are reused. This lets clients switch embedding backends per request without reloads and keeps both instances warm and ready for queries. Serves `/query` and `/evaluate`, logs requests/responses, and can precompute evaluation summaries at startup.
   - POST `/query`: Retrieves relevant chunks from vector store+ reranks them, and generates an answer
   - POST `/evaluate`: Computes BLEU and ROUGE-L scores based on the generated text and actual text in the `files/evaluation.json`
@@ -42,7 +42,7 @@ In addition,
 
 ## Models Used
 
-- Bi-Encoder Embeddings for Indexing and Retrieval
+1) **Bi-Encoder Embeddings for Indexing and Retrieval**
   - Sentence Transformer: all-MiniLM-L6-v2
     - Pros: Local, free, lightweight (~22.7 million parameters), fast, quick inference and efficient deployment
     - Cons: Might miss hard-to-catch patterns and important details that can be captured by larger models.
@@ -51,12 +51,12 @@ In addition,
     - Pros: Rich and high-quality embeddings, better context understanding, can capture subtle details
     - Cons: Dependency on API, computational overhead, higher cost
 
-- Cross-Encdoer Reranking for Retrieval
+2) **Cross-Encdoer Reranking for Retrieval**
   - CrossEncoder: BAAI/bge-reranker-base
     - Pros: High accruacy for ranking, open source, free
     - Cons: Slow inference, compute intensive
 
-- Generator
+3) **Generator**
   - ChatOpenAI: gpt-4o-mini
     - Pros: High quality generation, reasoning ability, easy integration
     - Cons: API dependency, hallucination risk, cost per call
