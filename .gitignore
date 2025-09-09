@@ -227,3 +227,5 @@ analysis.ipynb
 __pycache__/
 vector_store
 logs/
+brown-assistant.pem
+brown-assistant-demo.mp4

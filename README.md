@@ -9,6 +9,8 @@ A FastAPI backend is implemented to handle data processing, serve queries effici
 
 ## Demo
 
+<iframe width="1000" height="506" src="https://www.youtube.com/embed/RAQcApnjKB0?si=L0iddSu16eMuOmEA" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen style="max-width: 1000px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
+
 ## End-to-End Workflow
 
 1) **Data Acquisition**
@@ -130,9 +132,10 @@ First run notes
 
 **1) Create EC2 Instance**
 - AMI: Ubuntu 24.04 LTS
-- Instance type: t3.medium minimum (t3.large recommended)
+- Instance type: m7i-flex.large
 - Storage: 20–30 GB
-- Security group rules: allow ports 22 (SSH from your IP), 8000, 8501 (0.0.0.0/0 for testing), or front with an ALB/NGINX later
+- Number of instances: 1
+- Security group rules: Allow ports 22 (SSH from your IP), 8000, 8501 (0.0.0.0/0 for testing)
 
 **2) Connect and Prepare the Machine**
   
@@ -152,7 +155,6 @@ exit
 ```
 
 ```bash
-# Reconnect (group change takes effect)
 ssh -i your-key.pem ubuntu@your-public-ip
 ```
 
@@ -161,8 +163,8 @@ ssh -i your-key.pem ubuntu@your-public-ip
 Clone your repository and configure environment:
 
 ```bash  
-git clone <your-repo-url> rag
-cd rag
+git clone https://github.com/ozyurtf/brown-assistant.git
+cd brown-assistant
 cp env.example .env
 nano .env   # set OPENAI_API_KEY and any other variables
 ```
@@ -171,6 +173,10 @@ nano .env   # set OPENAI_API_KEY and any other variables
   
 ```bash
 docker-compose up -d --build
+```
+
+```bash
+docker-compose up
 ```
 
 **5) Access**
