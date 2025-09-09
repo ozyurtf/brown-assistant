@@ -1,0 +1,16 @@
+title: Brown Assistant
+
+plugins:
+  - jekyll-relative-links
+
+relative_links:
+  enabled: true
+  collections: true
+
+include:
+  - README.md
+  - LICENSE.md
+
+show_downloads: false
+github:
+  is_project_page: false
