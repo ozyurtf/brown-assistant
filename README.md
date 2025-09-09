@@ -1,5 +1,3 @@
-## RAG Student Course Assistant
-
 The goal of this project is implementing a Retrieval-Augmented Generation (RAG) system that helps all students at Brown University explore the courses that are open in the semester and understand their degree requirements by combining two sources:
 
 - CAB (Courses @ Brown): Courses in different departments, their descriptions, schedules and meeting times, instructors, descriptions, etc.
