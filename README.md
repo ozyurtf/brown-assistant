@@ -129,7 +129,7 @@ First run notes
 ## Running on AWS EC2
 
 **1) Create EC2 Instance**
-- AMI: Ubuntu 22.04 LTS
+- AMI: Ubuntu 24.04 LTS
 - Instance type: t3.medium minimum (t3.large recommended)
 - Storage: 20–30 GB
 - Security group rules: allow ports 22 (SSH from your IP), 8000, 8501 (0.0.0.0/0 for testing), or front with an ALB/NGINX later
