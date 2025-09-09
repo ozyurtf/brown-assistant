@@ -27,8 +27,8 @@ A FastAPI backend is implemented to handle data processing, serve queries effici
 
 **3) Retrieval and generation**
 - `rag.py`: Core RAG class with methods:
-  - load: Loads the persisted vector store, selects the appropriate collection based on the chosen embedding model
-  - retrieve: Filters the chunks in the vector store based on the department and/or concentration specified by the user, retrieves the most similar/relevant chunks based on the user query and selected embedding model, and reranks the retrieved chunks with CrossEncoder model
+  - `load`: Loads the persisted vector store, selects the appropriate collection based on the chosen embedding model
+  - `retrieve`: Filters the chunks in the vector store based on the department and/or concentration specified by the user, retrieves the most similar/relevant chunks based on the user query and selected embedding model, and (optionally) reranks the retrieved chunks with CrossEncoder model
   - `generate`: Calls ChatOpenAI to produce final answer based on user query and the retrieved context
 
 **4) Serving**
