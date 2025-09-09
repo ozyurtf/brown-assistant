@@ -1,7 +1,7 @@
 The goal of this project is implementing a Retrieval-Augmented Generation (RAG) system that helps all students at Brown University explore the courses that are open in the semester and understand their degree requirements by combining two sources:
 
-- CAB (Courses @ Brown): Courses in different departments, their descriptions, schedules and meeting times, instructors, descriptions, etc. These can be found [here](https://cab.brown.edu)
-- Bulletin: Concentration requirements, academic rules and policies. These can be found [here](https://bulletin.brown.edu/the-college/concentrations/)
+- **CAB (Courses @ Brown):** Courses in different departments, their descriptions, schedules and meeting times, instructors, descriptions, etc. These can be found [here](https://cab.brown.edu)
+- **Bulletin**: Concentration requirements, academic rules and policies. These can be found [here](https://bulletin.brown.edu/the-college/concentrations/)
 
 A FastAPI backend is implemented to handle data processing, serve queries efficiently, and evaluate the performance of the generator. In addition, a Streamlit UI is built to provide a simple, interactive interface for users. 
 
