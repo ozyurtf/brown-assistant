@@ -58,7 +58,6 @@ class RAG:
             self.embedding_model = OpenAIEmbeddings(model=model_name)
             self.collection = self.client.get_or_create_collection(name=f"courses_openai")
 
-        
         print(f"Vector store loaded from Chroma at '{persist_path}' with embeddings='{model_name}' and metadata from {filepath}.pkl")
 
 
@@ -175,7 +174,7 @@ class RAG:
         model = ChatOpenAI(model="gpt-4o-mini", temperature=0.2, max_tokens=max_tokens)
         prompt = PromptTemplate.from_template(
             """
-            You are a helpful assistant that helps students at Brown University 
+            You are a helpful assistant that helps students
             with their academic, educational, and general questions about their education and program.
             
             User question: {user_query}

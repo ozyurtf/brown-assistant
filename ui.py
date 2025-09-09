@@ -74,11 +74,39 @@ with st.sidebar:
     st.divider()
     st.header("Filters")
     
-    bulletin_opts = [None] +list(bulletin_code_to_dept_map.keys())
-    bulletin_department = st.selectbox("Bulletin Department", bulletin_opts, index=0)
+    # Add informational note about data sources
+    with st.expander("When to use CAB vs Bulletin filters", expanded=False):
+        st.warning("""
+**CAB Department** - Use for current course offerings and semester planning:
+• What courses are available this semester  
+• Course schedules, meeting times, instructors  
+• Specific course descriptions and prerequisites  
+*Example: "What CSCI courses are offered this fall?" or "When does APMA 1650 meet?"*
 
+**Bulletin Department** - Use for degree requirements and academic policies:
+• What courses are required for your concentration  
+• Official graduation requirements and academic rules  
+• Concentration policies, honors eligibility, capstone requirements  
+*Example: "What are the requirements for Computer Science concentration?"*
+
+**Tip:** Select both filters to get comprehensive information combining requirements with current offerings
+        """)
+    
     cab_opts = [None] + list(cab_code_to_dept_map.keys())
-    cab_department = st.selectbox("CAB Department", cab_opts, index=0)
+    cab_department = st.selectbox(
+        "CAB Department", 
+        cab_opts, 
+        index=0,
+        help="Filter by department for current course offerings and schedules"
+    )
+
+    bulletin_opts = [None] + list(bulletin_code_to_dept_map.keys())
+    bulletin_department = st.selectbox(
+        "Bulletin Department", 
+        bulletin_opts, 
+        index=0,
+        help="Filter by concentration/major for degree requirements and policies"
+    )
 
     
 
@@ -119,7 +147,7 @@ if search_clicked:
             try:
                 retrieval_time_seconds = None
                 current_model_display = model_options.get(selected_embedding_model, '')
-                with st.spinner(f"Retrieving with {current_model_display} and generating answer."):
+                with st.spinner(f"Retrieving relevant information with {current_model_display} and generating an answer."):
                     start_time = time.perf_counter()
                     response = requests.post(
                         f"{API_BASE}/query", 

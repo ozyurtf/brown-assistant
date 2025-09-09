@@ -94,9 +94,9 @@ def compute_evaluation_summary(embedding_model: str) -> EvaluateResponse:
             cab_department=cab_department,
             top_k_bulletin=3,
             top_k_cab=5,
-            rerank_top_n=5,
-            rerank_min_score=0.2,
-            rerank_model_name="BAAI/bge-reranker-base",
+            # rerank_top_n=5,
+            # rerank_min_score=0.2,
+            # rerank_model_name="BAAI/bge-reranker-base",
         )
         retrieval_s = (time.perf_counter() - q_start)
         context = "\n".join(r.get("text", "") for r in results)
@@ -211,7 +211,7 @@ def query(req: QueryRequest) -> QueryResponse:
             bulletin_department = req.bulletin_department,
             cab_department = req.cab_department,
             top_k_bulletin = 2,
-            top_k_cab = 5,
+            top_k_cab = 10,
             rerank_top_n = 5,
             rerank_min_score=0.2,
             rerank_model_name = req.rerank_model_name,

@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  rag-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"  # FastAPI
+      - "8501:8501"  # Streamlit
+    environment:
+      # OpenAI API Key - set this in your .env file or pass as environment variable
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      
+      # Optional: Control evaluation precomputation
+      - PRECOMPUTE_EVAL=false
+      
+      # API Configuration
+      - API_BASE=http://localhost:8000
+      
+      # Streamlit Configuration
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      
+      # Python Configuration
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+      - TOKENIZERS_PARALLELISM=false
+    
+    volumes:
+      # Persist data files and vector store
+      - ./files:/app/files
+      - ./vector_store:/app/vector_store
+      - ./logs:/app/logs
+      
+      # Optional: Mount .env file if you have one
+      - ./.env:/app/.env
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    # Resource limits (adjust as needed)
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
