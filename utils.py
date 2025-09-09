@@ -12,7 +12,7 @@ import evaluate
 bleu_metric = evaluate.load("bleu")
 rouge_metric = evaluate.load("rouge")
 
-def map_code_to_dept_cab():
+def map_code_to_dept():
     """Scrape the main page to find department codes"""
     url = "https://cab.brown.edu/"
     headers = {
@@ -34,7 +34,7 @@ def map_code_to_dept_cab():
     
     return departments
 
-def map_code_to_dept_bulletin():
+def map_code_to_concentration():
     """Scrape Brown bulletin to get department codes and names"""
     url = "https://bulletin.brown.edu/the-college/concentrations/"
     headers = {
@@ -44,7 +44,7 @@ def map_code_to_dept_bulletin():
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, 'html.parser')
     
-    departments = {}
+    concentrations = {}
     
     # Look for links to concentration pages
     links = soup.find_all('a', href=True)
@@ -52,17 +52,17 @@ def map_code_to_dept_bulletin():
     for link in links:
         href = link.get('href')
         if href and '/concentrations/' in href and href.endswith('/'):
-            # Extract department code from URL
+            # Extract concentration code from URL
             match = re.search(r'/concentrations/([a-zA-Z]+)/?$', href)
             if match:
-                dept_code = match.group(1)
-                dept_name = link.text.strip()
+                concentration_code = match.group(1)
+                concentration_name = link.text.strip()
                 
                 # Skip empty names or navigation links
-                if dept_name and len(dept_name) > 2 and not dept_name.lower() in ['home', 'back', 'next']:
-                    departments[dept_name] = dept_code
+                if concentration_name and len(concentration_name) > 2 and not concentration_name.lower() in ['home', 'back', 'next']:
+                    concentrations[concentration_name] = concentration_code
     
-    return departments
+    return concentrations
 
 def count_tokens(text: str, model: str = "gpt-4o-mini") -> int:
     try:

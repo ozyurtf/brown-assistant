@@ -14,13 +14,12 @@ load_dotenv()
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-
-def chunk_bulletin(department: str, content: str) -> List[Tuple[str, Dict]]:
+def chunk_concentration(concentration: str, content: str) -> List[Tuple[str, Dict]]:
     """
     Split content by ### headers and create chunks with metadata.
     
     Args:
-        department: The bulletin department (e.g., 'math', 'comp', etc.)
+        concentration: The concentration (e.g., 'math', 'comp', etc.)
         content: The full content string
         
     Returns:
@@ -40,7 +39,7 @@ def chunk_bulletin(department: str, content: str) -> List[Tuple[str, Dict]]:
         chunks.append(chunk)
         
         metadata.append({
-            'department': department,
+            'concentration': concentration,
             'source': 'bulletin',
         })        
     
@@ -55,7 +54,7 @@ def chunk_bulletin(department: str, content: str) -> List[Tuple[str, Dict]]:
             # Only add if there's actual content
             if section_content:
                 metadata.append({
-                    'department': department,
+                    'concentration': concentration,
                     'source': 'bulletin',
                 })
 
@@ -125,15 +124,15 @@ class VectorStore:
             'openai_embedding_model': openai_embeddings,
         }
             
-    def process_bulletin(self, bulletin: Dict[str, str]):
+    def process_concentration(self, concentration_dict: Dict[str, str]):
         """ 
         Process the entire bulletin dictionary and add all chunks to both vector stores.
         """                
         all_chunks = []
         all_metadata = []
         
-        for department, content in bulletin.items():
-            chunk, metadata = chunk_bulletin(department, content)
+        for concentration, content in concentration_dict.items():
+            chunk, metadata = chunk_concentration(concentration, content)
             all_chunks += chunk
             all_metadata += metadata
         
@@ -162,17 +161,17 @@ class VectorStore:
         self.chunks.extend(all_chunks)
         self.metadata.extend(all_metadata)
         
-        print(f"Processed {len(all_chunks)} chunks from {len(bulletin)} bulletin entries")
+        print(f"Processed {len(all_chunks)} chunks from {len(concentration)} concentration entries")
 
-    def process_cab(self, cab: Dict[str, str]):
+    def process_cab(self, cab_dict: Dict[str, str]):
         """
         Process the entire cab dictionary and add all chunks to both vector stores.        
         """
         # Generate minimal metadata with source and id if present
         cab_metas: List[Dict] = []
-        for term in cab.keys():
-            for department in cab[term].keys():
-                for course in cab[term][department]:
+        for term in cab_dict.keys():
+            for department in cab_dict[term].keys():
+                for course in cab_dict[term][department]:
                     meta = {
                         'term': term,
                         'department': department,
@@ -181,7 +180,7 @@ class VectorStore:
                     }
                     cab_metas.append(meta)                
 
-        cab_chunks = format_course(cab)
+        cab_chunks = format_course(cab_dict)
         embeddings_dict = self.embed_documents(cab_chunks)
 
         # Add to sentence transformer collection
@@ -220,14 +219,14 @@ class VectorStore:
 
 def main():           
     with open('files/cab.json', 'r') as cab_file:
-        cab = json.load(cab_file)
+        cab_dict = json.load(cab_file)
 
-    with open('files/bulletin.json', 'r') as bulletin_file:
-        bulletin = json.load(bulletin_file)
+    with open('files/concentration.json', 'r') as concentration_file:
+        concentration_dict = json.load(concentration_file)
     
     vector_store = VectorStore(persist_path='vector_store')
-    vector_store.process_cab(cab)
-    vector_store.process_bulletin(bulletin)
+    vector_store.process_cab(cab_dict)
+    vector_store.process_concentration(concentration_dict)
     vector_store.save("vector_store")
 
 if __name__ == "__main__":

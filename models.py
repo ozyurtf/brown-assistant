@@ -3,10 +3,10 @@ from typing import List, Dict, Any, Optional
 
 class QueryRequest(BaseModel):
     question: str = Field(..., description="User question")
-    bulletin_department: Optional[str] = Field(None, description="Bulletin key, e.g., 'apma'")
-    cab_department: Optional[str] = Field(None, description="CAB key, e.g., 'APMA'")
-    top_k_bulletin: int = Field(5, ge=1, le=20)
-    top_k_cab: int = Field(5, ge=1, le=20)
+    concentration: Optional[str] = Field(None, description="Concentration key, e.g., 'apma'")
+    department: Optional[str] = Field(None, description="Department key, e.g., 'APMA'")
+    top_k_concentration: int = Field(5, ge=1, le=20)
+    top_k_department: int = Field(5, ge=1, le=20)
     rerank_top_n: Optional[int] = Field(None, description="If set, keep only top N after reranking")
     rerank_min_score: Optional[float] = Field(None, description="If set, drop items with score below this threshold")
     rerank_model_name: Optional[str] = Field(None, description="CrossEncoder model name")

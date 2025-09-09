@@ -1,6 +1,7 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Depends, Header
 from typing import List, Optional, Dict
 import os
+from dotenv import load_dotenv
 import time
 import logging
 from datetime import datetime
@@ -10,12 +11,33 @@ from models import *
 from rag import RAG
 from utils import compute_bleu_score, compute_rouge_score
 
+load_dotenv()
 app = FastAPI(title="RAG API", version="1.0.0")
+
+# Get API token from environment
+API_TOKEN = os.getenv("API_TOKEN")
+
+def verify_token(authorization: str = Header(None)):
+    """Verify API token from Authorization header."""
+    if not API_TOKEN:
+        raise HTTPException(status_code=500, detail="API_TOKEN not configured")
+    
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authorization header required")
+    
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid authorization format. Use: Bearer <token>")
+    
+    token = authorization.replace("Bearer ", "")
+    if token != API_TOKEN:
+        raise HTTPException(status_code=401, detail="Invalid API token")
+    
+    return token
 
 LOGGER_NAME = "rag_logger"
 LOG_DIR = os.path.join(os.getcwd(), "logs")
 LOG_FILE = os.path.join(LOG_DIR, "records.txt")
-EVALUATION_FILE_PATH = "files/evaluation.json"
+EVALUATION_FILE_PATH = os.getenv("EVALUATION_FILE", "files/evaluation.json")
 
 def init_logger() -> logging.Logger:
     os.makedirs(LOG_DIR, exist_ok=True)
@@ -35,6 +57,7 @@ def log_block(lines: List[str]) -> None:
         logger.info("\n".join(lines) + "\n")
     except Exception:
         pass
+
 
 # Store multiple RAG instances for different models
 rag_instances: Dict[str, RAG] = {}
@@ -79,24 +102,23 @@ def compute_evaluation_summary(embedding_model: str) -> EvaluateResponse:
 
     bleu_scores: List[float] = []
     rouge_scores: List[float] = []
-    eval_start = time.perf_counter()
 
     for data in evaluation:
         question = data.get('question', '')
         golden_answer = data.get('answer', '')
-        bulletin_department = data.get('bulletin_department', '')
-        cab_department = data.get('cab_department', '')
+        concentration = data.get('concentration', '')
+        department = data.get('department', '')
 
         q_start = time.perf_counter()
         results = rag.retrieve(
-            query=question,
-            bulletin_department=bulletin_department,
-            cab_department=cab_department,
-            top_k_bulletin=3,
-            top_k_cab=5,
-            # rerank_top_n=5,
-            # rerank_min_score=0.2,
-            # rerank_model_name="BAAI/bge-reranker-base",
+            query = question,
+            concentration = concentration,
+            department = department,
+            top_k_concentration = 2,
+            top_k_department = 3,
+            rerank_top_n = None,
+            rerank_min_score = None,
+            rerank_model_name = None,
         )
         retrieval_s = (time.perf_counter() - q_start)
         context = "\n".join(r.get("text", "") for r in results)
@@ -110,60 +132,11 @@ def compute_evaluation_summary(embedding_model: str) -> EvaluateResponse:
         bleu_scores.append(float(bleu))
         rouge_scores.append(float(rouge))
 
-        # Log per-sample evaluation details
-        try:
-            ts = datetime.utcnow().isoformat() + "Z"
-            lines = [
-                "----- EVAL SAMPLE -----",
-                f"timestamp: {ts}",
-                f"embedding_model: {embedding_model}",
-                f"question: {question}",
-                f"bulletin_department: {bulletin_department}",
-                f"cab_department: {cab_department}",
-                f"retrieval_time_s: {retrieval_s:.3f}",
-                f"generation_time_s: {gen_s:.3f}",
-                f"retrieved_count: {len(results)}",
-                f"bleu: {float(bleu):.4f}",
-                f"rouge_l_f1: {float(rouge):.4f}",
-                "generated_answer:",
-                f"  {generated_answer}",
-                "top_results:",
-            ]
-            for idx, r in enumerate(results[:3], start=1):
-                meta = r.get("metadata", {}) or {}
-                src = meta.get("source", "")
-                dept = meta.get("department", "")
-                sim = r.get("similarity_score", 0.0)
-                lines.append(f"  {idx}) source={src} dept={dept} sim={sim}")
-            lines.append("------------------------")
-            log_block(lines)
-        except Exception:
-            pass
-
-    total_eval_s = (time.perf_counter() - eval_start)
-
     summary = EvaluateResponse(
         bleu_score=float(mean(bleu_scores)) if bleu_scores else 0.0,
         rouge_score=float(mean(rouge_scores)) if rouge_scores else 0.0,
         embedding_model=embedding_model
     )
-
-    # Log summary
-    try:
-        ts = datetime.utcnow().isoformat() + "Z"
-        lines = [
-            "----- EVAL SUMMARY -----",
-            f"timestamp: {ts}",
-            f"embedding_model: {embedding_model}",
-            f"num_samples: {len(bleu_scores)}",
-            f"avg_bleu: {summary.bleu_score:.4f}",
-            f"avg_rouge_l_f1: {summary.rouge_score:.4f}",
-            f"total_time_s: {total_eval_s:.3f}",
-            "-------------------------",
-        ]
-        log_block(lines)
-    except Exception:
-        pass
 
     return summary
 
@@ -191,7 +164,7 @@ def startup() -> None:
                 print(f"Failed to precompute evaluation for {embedding_model}: {e}")
 
 @app.post("/query", response_model=QueryResponse)
-def query(req: QueryRequest) -> QueryResponse:
+def query(req: QueryRequest, token: str = Depends(verify_token)) -> QueryResponse:
     # Get embedding model from request, default to DEFAULT_EMBEDDING_MODEL
     embedding_model = req.embedding_model or DEFAULT_EMBEDDING_MODEL
     
@@ -208,13 +181,13 @@ def query(req: QueryRequest) -> QueryResponse:
         ret_start = time.perf_counter()
         results = rag.retrieve(
             query=req.question,
-            bulletin_department = req.bulletin_department,
-            cab_department = req.cab_department,
-            top_k_bulletin = 2,
-            top_k_cab = 10,
-            rerank_top_n = 5,
-            rerank_min_score=0.2,
-            rerank_model_name = req.rerank_model_name,
+            concentration = req.concentration,
+            department = req.department,
+            top_k_concentration = 2,
+            top_k_department = 3,
+            rerank_top_n = None,
+            rerank_min_score = None,
+            rerank_model_name = None,
         )
         retrieval_s = (time.perf_counter() - ret_start)
         context = "\n".join(r.get("text", "") for r in results)
@@ -231,8 +204,8 @@ def query(req: QueryRequest) -> QueryResponse:
                 f"timestamp: {ts}",
                 f"embedding_model: {embedding_model}",
                 f"question: {req.question}",
-                f"bulletin_department: {req.bulletin_department}",
-                f"cab_department: {req.cab_department}",
+                f"concentration: {req.concentration}",
+                f"department: {req.department}",
                 f"retrieval_time_s: {retrieval_s:.3f}",
                 f"generation_time_s: {gen_s:.3f}",
                 f"total_time_s: {total_s:.3f}",
@@ -245,8 +218,9 @@ def query(req: QueryRequest) -> QueryResponse:
                 meta = r.get("metadata", {}) or {}
                 src = meta.get("source", "")
                 dept = meta.get("department", "")
+                conc = meta.get("concentration", "")
                 sim = r.get("similarity_score", 0.0)
-                lines.append(f"  {idx}) source={src} dept={dept} sim={sim}")
+                lines.append(f"  {idx}) source={src} dept={dept} conc={conc} sim={sim}")
             lines.append("------------------------")
             log_block(lines)
         except Exception:
@@ -257,7 +231,7 @@ def query(req: QueryRequest) -> QueryResponse:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/evaluate", response_model=EvaluateResponse)
-def evaluate(req: EvaluateRequest) -> EvaluateResponse:
+def evaluate(req: EvaluateRequest, token: str = Depends(verify_token)) -> EvaluateResponse:
     """Return cached evaluation summary for specified model."""
     embedding_model = getattr(req, 'embedding_model', None) or DEFAULT_EMBEDDING_MODEL
     

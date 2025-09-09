@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 import re
 from typing import List, Tuple
 
-def get_bulletin_codes():
+def get_concentration_codes():
    url = "https://bulletin.brown.edu/the-college/concentrations/"
    response = requests.get(url)
    soup = BeautifulSoup(response.content, 'html.parser')
@@ -78,7 +78,7 @@ async def scrape_all_concentrations(urls):
         verbose=False
     )
 
-    bulletin = {}
+    concentration = {}
     
     async with AsyncWebCrawler() as crawler:
         print(f"Starting to scrape {len(urls)} concentration pages...")
@@ -92,7 +92,7 @@ async def scrape_all_concentrations(urls):
                 try:
                     cleaned_content = clean_content(res.markdown.raw_markdown)
                     code = res.url.split("/")[-2]
-                    bulletin[code] = cleaned_content
+                    concentration[code] = cleaned_content
                     successful += 1
                     print(f"{code}: {len(res.markdown.raw_markdown)} chars")
                 except Exception as e:
@@ -104,27 +104,27 @@ async def scrape_all_concentrations(urls):
         
         print(f"\nCompleted: {successful} successful, {failed} failed")
         
-    return bulletin
+    return concentration
 
-def save_bulletin_to_json(bulletin, filename="files/bulletin.json"):
-    """Save bulletin dictionary to JSON file."""
+def save_concentration_to_json(concentration, filename="files/concentration.json"):
+    """Save concentration dictionary to JSON file."""
     try:
         with open(filename, 'w', encoding='utf-8') as f:
-            json.dump(bulletin, f, indent=2, ensure_ascii=False)
-        print(f"Saved bulletin data to {filename}")
-        print(f"Total concentrations: {len(bulletin)}")
+            json.dump(concentration, f, indent=2, ensure_ascii=False)
+        print(f"Saved concentration data to {filename}")
+        print(f"Total concentrations: {len(concentration)}")
     except Exception as e:
         print(f"Error saving to {filename}: {e}")
 
 def main():
     """Main function to scrape concentrations and save to JSON."""
-    codes = get_bulletin_codes()
+    codes = get_concentration_codes()
     urls = [f"https://bulletin.brown.edu/the-college/concentrations/{code}/" for code in codes]
     print(f"Found {len(codes)} concentration codes")
-    bulletin = asyncio.run(
+    concentration = asyncio.run(
         scrape_all_concentrations(urls)
     )
-    save_bulletin_to_json(bulletin)
+    save_concentration_to_json(concentration)
 
 if __name__ == "__main__":
     main()   

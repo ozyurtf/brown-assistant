@@ -34,8 +34,8 @@ class RAG:
         self.cross_encoder_name = None
 
     def get_available_keys(self) -> List[str]:
-        """Get all available bulletin keys."""
-        keys = set(meta['department'] for meta in self.metadata if isinstance(meta, dict) and 'department' in meta and meta.get('department'))
+        """Get all available concentration keys."""
+        keys = set(meta['concentration'] for meta in self.metadata if isinstance(meta, dict) and 'concentration' in meta and meta.get('concentration'))
         return sorted(list(keys))
         
     def load(self, filepath: str, model_name: str = None, persist_path: str = 'vector_store'):
@@ -61,8 +61,8 @@ class RAG:
         print(f"Vector store loaded from Chroma at '{persist_path}' with embeddings='{model_name}' and metadata from {filepath}.pkl")
 
 
-    def retrieve(self, query: str, bulletin_department: str = None, cab_department: str = None, top_k_bulletin: int = 5, top_k_cab: int = 5, rerank_top_n: int | None = None, rerank_min_score: float | None = None, rerank_model_name: str | None = None) -> List[Dict]:
-        """Retrieve from bulletin and cab separately using provided department codes and merge results."""
+    def retrieve(self, query: str, concentration: str = None, department: str = None, top_k_concentration: int = 5, top_k_department: int = 5, rerank_top_n: int | None = None, rerank_min_score: float | None = None, rerank_model_name: str | None = None) -> List[Dict]:
+        """Retrieve from concentration and department separately using provided concentration and department codes and merge results."""
         # Embed once
         if self.backend == 'st':
             query_embedding = self.embedding_model.encode([query], convert_to_tensor=False)
@@ -74,13 +74,13 @@ class RAG:
 
         combined: List[Dict] = []
 
-        if bulletin_department:
+        if concentration:
             b_q = self.collection.query(
                 query_embeddings=query_embedding.tolist(),
-                n_results=max(1, top_k_bulletin),
+                n_results=max(1, top_k_concentration),
                 include=["documents", "metadatas", "distances"],
                 where={"$and": [
-                    {"department": {"$eq": bulletin_department}},
+                    {"concentration": {"$eq": concentration}},
                     {"source": {"$eq": "bulletin"}}
                 ]},
             )
@@ -98,13 +98,13 @@ class RAG:
                     'rank': len(combined) + 1,
                 })
 
-        if cab_department:
+        if department:
             c_q = self.collection.query(
                 query_embeddings=query_embedding.tolist(),
-                n_results=max(1, top_k_cab),
+                n_results=max(1, top_k_department),
                 include=["documents", "metadatas", "distances"],
                 where={"$and": [
-                    {"department": {"$eq": cab_department}},
+                    {"department": {"$eq": department}},
                     {"source": {"$eq": "cab"}}
                 ]},
             )
@@ -125,11 +125,11 @@ class RAG:
         # Optional cross-encoder reranking
         if rerank_top_n is not None or rerank_min_score is not None or rerank_model_name is not None:
             combined = self.rerank(
-                query=query,
-                items=combined,
-                model_name=rerank_model_name,
-                top_n=rerank_top_n,
-                min_score=rerank_min_score,
+                query = query,
+                items = combined,
+                model_name = rerank_model_name,
+                top_n = rerank_top_n,
+                min_score = rerank_min_score,
             )
 
         return combined

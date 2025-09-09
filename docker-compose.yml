@@ -6,26 +6,27 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"  # FastAPI
-      - "8501:8501"  # Streamlit
+      - "${API_PORT}:${API_PORT}" 
+      - "${STREAMLIT_PORT}:${STREAMLIT_PORT}" 
     environment:
       # OpenAI API Key - set this in your .env file or pass as environment variable
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      
+      - API_TOKEN=${API_TOKEN}
+        
       # Optional: Control evaluation precomputation
-      - PRECOMPUTE_EVAL=false
+      - PRECOMPUTE_EVAL=${PRECOMPUTE_EVAL}
       
       # API Configuration
-      - API_BASE=http://localhost:8000
+      - API_BASE=http://${API_HOST}:${API_PORT}
       
       # Streamlit Configuration
-      - STREAMLIT_SERVER_PORT=8501
-      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_SERVER_PORT=${STREAMLIT_PORT}
+      - STREAMLIT_SERVER_ADDRESS=${STREAMLIT_HOST}
       
       # Python Configuration
-      - PYTHONDONTWRITEBYTECODE=1
-      - PYTHONUNBUFFERED=1
-      - TOKENIZERS_PARALLELISM=false
+      - PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE}
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}
+      - TOKENIZERS_PARALLELISM=${TOKENIZERS_PARALLELISM}
     
     volumes:
       # Persist data files and vector store
@@ -39,7 +40,7 @@ services:
     restart: unless-stopped
     
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:${API_PORT}/docs"]
       interval: 30s
       timeout: 10s
       retries: 3

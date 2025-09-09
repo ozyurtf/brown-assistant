@@ -1,26 +1,26 @@
 [
 {"question": "Who teaches the APMA 0360 class, what is his email, when and where this class is scheduled, how many sections are there, and what are the prerequisites?",
-"bulletin_department": "apma",
-"cab_department": "APMA",
+"concentration": "apma",
+"department": "APMA",
 "answer": "Yan Guo teaches this course. His email address is yan_guo@brown.edu. The class is scheduled in Smith-Buonanno Hall 106 on Monday, Wednesday, and Friday from 12:00 PM to 12:50 PM. There is 1 section, and the prerequisites are (MATH 0180, 0200, 0350, or APMA 0260) and ((APMA 0330 and 0340) or APMA 0350, MATH 1110, or APMA 0355)"},
 
 {"question": "What are the prerequisites for Astrophysics Track for the Sc.B. degree?",
-"bulletin_department": "phys",
-"cab_department": "PHYS",
+"concentration": "phys",
+"department": "PHYS",
 "answer": "Select one of each:\n\nPHYS 0050 Foundations of Mechanics\tor PHYS 0070 Analytical Mechanics\nPHYS 0060 Foundations of Electromagnetism and Modern Physics or PHYS 0160 Introduction to Relativity, Waves and Quantum Physics\nPHYS 0270 Astronomy and Astrophysics\n\nSelect one of the following Series:\t\nMATH 0170 & MATH 0180 Single Variable Calculus, Part II (Accelerated) and Multivariable Calculus\nMATH 0190 & MATH 0200 Single Variable Calculus, Part II (Physics/Engineering) and Multivariable Calculus (Physics/Engineering)\t\nMATH 0350 Multivariable Calculus With Theory (or equivalent)\t\nPHYS 0470 Electricity and Magnetism\n\nProgram:\t\nMATH 0520 Linear Algebra or MATH 0540 Linear Algebra With Theory or PHYS 0720 Methods of Mathematical Physics\n\nSelect one of the following Math courses:\nAPMA 0330 Methods of Applied Mathematics I\t\nAPMA 0340 Methods of Applied Mathematics II\t\nAPMA 0350 Applied Ordinary Differential Equations\t\nAPMA 0360 Applied Partial Differential Equations I\t\nMATH 1110 Ordinary Differential Equations\t\nMATH 1120 Partial Differential Equations\t\nPHYS 0500 Advanced Classical Mechanics\t\nPHYS 0560 Experiments in Modern Physics\t\nPHYS 1410 Quantum Mechanics A\nPHYS 1530 Thermodynamics and Statistical Mechanics\n\nThree of the following:\t3\nPHYS 1100 General Relativity\t\nPHYS 1250 Stellar Structure and the Interstellar Medium\t\nPHYS 1270 Extragalactic Astronomy and High-Energy Astrophysics\t\nPHYS 1280 Introduction to Cosmology\t\n\nTwo additonal 1000- or 2000-level courses in physics or a related field which are not listed as requirements\nPHYS 1990 Senior Conference Course \nTotal Credits: 18"},
 
 {"question": "Give me all the required coursework for Biomedical Engineering and recommend which courses I should take this semester.",
-"bulletin_department": "enbi",
-"cab_department":"BIOM",
+"concentration": "enbi",
+"department":"BIOM",
 "answer": "For the Standard program for the Sc.B. degree:\n\n1. Core Courses\t\nENGN 0030 Introduction to Engineering or ENGN 0032 Introduction to Engineering: Design\nENGN 0040 Engineering Statics and Dynamics\nENGN 0510 Electricity and Magnetism\tor ENGN 0520 Electrical Circuits and Signals\nENGN 0720 Thermodynamics\nENGN 0810 Fluid Mechanics\nCHEM 0330 Equilibrium, Rate, and Structure\nMATH 0190 Single Variable Calculus, Part II (Physics/Engineering) or MATH 0100 Single Variable Calculus, Part II\nCHEM 0350 Organic Chemistry I\nMATH 0200 Multivariable Calculus (Physics/Engineering) or MATH 0180 Multivariable Calculus or MATH 0350 Multivariable Calculus With Theory\nAPMA 0350 Applied Ordinary Differential Equations\nAPMA 1650 Introduction to Probability and Statistics with Calculus or BIOL 0495\tStatistical Analysis of Biological Data or PHP 1510\tPrinciples of Biostatistics and Data Analysis or APMA 1655 Introduction to Probability and Statistics with Theory\n\n2. Upper Level Biomedical Engineering Curriculum\nENGN 1110 Transport and Biotransport Processes\nENGN 1210 Biomechanics\nENGN 1230 Instrumentation Design\nENGN 1490 Biomaterials\nBIOL 0800 Principles of Physiology\n\n3. Additional Biomedical Engineering Electives: Complete at least 3 courses from the following groups; other upper-level courses are subject to Concentration Advisor approval.\nSelect one or two of the following:\nCSCI 1810 Computational Molecular Biology or CSCI 1820 Algorithmic Foundations of Computational Biology\nENGN 0500 Digital Computing Systems\t\nENGN 1220 Neuroengineering\t\nENGN 1510 Nanoengineering and Nanomedicine\t\nENGN 1520 Cardiovascular Engineering\t\nENGN 1550 Recent Advances in Biomedical Engineering\t\nENGN 1740 Computer Aided Visualization and Design\t\nENGN 1930B Biomedical Optics\t\nENGN 1945 Immunoengineering\t\nENGN 2625 Optical Microscopy: Fundamentals and Applications\t\nENGN 2910S Cancer Nanotechnology\t\nENGN 2911R Analytical Modeling for Biomechanical and Biomedical Systems\t\nENGN 2912R Implantable Devices\t\nBIOL 1140 Tissue Engineering\t\nBIOL 1150 Stem Cell Engineering\t\nBIOL 2110 Drug and Gene Delivery\t\n\nAt least one or two more courses from:\t\nBIOL 0280 Biochemistry\t\nBIOL 0470 Genetics\t\nBIOL 0500 Cell and Molecular Biology\t\nBIOL 0510 Introductory Microbiology\t\nBIOL 0530 Principles of Immunology\t\nBIOL 1090 Polymer Science for Biomaterials\t\nBIOL 1100 Cell Physiology and Biophysics\t\nBIOL 1555 Methods in Informatics and Data Science for Health\t\nAPMA 1070 Quantitative Models of Biological Systems\t\nCHEM 0360 Organic Chemistry II\t\nENGN 2910G Topics in Translational Research and Technologies\t\nNEUR 1020 Principles of Neurobiology\t\nNEUR 1440 Mechanisms and Meaning of Neural Dynamics\t\nPHYS 1610 Biological Physics\t\nBIOL 1810 21st Century Applications in Cell and Molecular Biology\t\n\n4. Capstone Design\nENGN 1240\tBiomedical Engineering Design and Innovation\nENGN 1250\tBiomedical Engineering Design and Innovation II\n\n5. General Education Requirement: At least four approved courses must be taken in the humanities and social sciences.\t\nTotal Credits\t21"},
 
 {"question": "Can you give me the name of the NEUR 1030 class, the maximum enrollment number, and the number of available seats? Also, I'm in remote study. Can I enroll in this class?",
-"bulletin_department": "neur",
-"cab_department":"NEUR",
+"concentration": "neur",
+"department":"NEUR",
 "answer": "The name of the NEUR 1030 class is Neural Systems. The maximum enrollment number is 80, and the number of available seats is 17. If you are in remote study, you may not enroll"},
 
 {"question": "I want to enroll in Statistical Neuroscience class. Is there any availability?",
-"bulletin_department": "neur",
-"cab_department":"NEUR",
+"concentration": "neur",
+"department":"NEUR",
 "answer": "No, there is only one section for this class and it is currently full"}
 ]

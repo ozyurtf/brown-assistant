@@ -2,10 +2,42 @@ import os
 import time
 import requests
 import streamlit as st
-from utils import map_code_to_dept_cab, map_code_to_dept_bulletin
+from dotenv import load_dotenv
+from utils import map_code_to_dept, map_code_to_concentration
 
-API_BASE = os.getenv("API_BASE", "http://localhost:8000")
-REQUEST_TIMEOUT = 180  
+load_dotenv()
+
+# Determine API base URL with sensible fallbacks
+
+host = os.getenv("API_HOST")
+port = os.getenv("API_PORT")
+if host and port:
+    API_BASE = f"http://{host}:{port}"
+else:
+    API_BASE = "http://localhost:8000"
+
+# Get API token for authentication
+API_TOKEN = os.getenv("API_TOKEN")
+
+# If API_TOKEN is still empty, manually parse the .env file
+if not API_TOKEN:
+    try:
+        with open(".env", 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith('API_TOKEN='):
+                    API_TOKEN = line.split('=', 1)[1]
+                    break
+    except Exception as e:
+        print(f"Error reading .env file: {e}")
+
+REQUEST_TIMEOUT = 180
+
+def get_auth_headers():
+    """Get authorization headers if API token is configured."""
+    if API_TOKEN:
+        return {"Authorization": f"Bearer {API_TOKEN}"}
+    return {}  
 
 @st.cache_data(show_spinner=False)
 def fetch_evaluation(embedding_model: str):
@@ -14,7 +46,8 @@ def fetch_evaluation(embedding_model: str):
         response = requests.post(
             f"{API_BASE}/evaluate", 
             json={"embedding_model": embedding_model}, 
-            timeout=REQUEST_TIMEOUT
+            headers=get_auth_headers(),
+            timeout=REQUEST_TIMEOUT,
         )
         response.raise_for_status()
         return response.json()
@@ -31,11 +64,11 @@ def create_model_display_name(model_key: str, model_value: str) -> str:
     return f"{base_name} ({model_value})"
 
 # Initialize department mappings
-bulletin_code_to_dept_map = map_code_to_dept_bulletin()
-cab_code_to_dept_map = map_code_to_dept_cab()
+code_to_concentration_map = map_code_to_concentration()
+code_to_department_map = map_code_to_dept()
 
-st.set_page_config(page_title="RAG UI", layout="wide")
-st.title("Student Course Assistant")
+st.set_page_config(page_title="Brown Assisstant", layout="wide")
+st.title("Brown Assisstant")
 
 with st.sidebar:
     st.header("Model Selection")
@@ -75,15 +108,15 @@ with st.sidebar:
     st.header("Filters")
     
     # Add informational note about data sources
-    with st.expander("When to use CAB vs Bulletin filters", expanded=False):
+    with st.expander("When to filter by department vs concentration?", expanded=False):
         st.warning("""
-**CAB Department** - Use for current course offerings and semester planning:
+**Department** - Use for current course offerings and semester planning:
 • What courses are available this semester  
 • Course schedules, meeting times, instructors  
 • Specific course descriptions and prerequisites  
 *Example: "What CSCI courses are offered this fall?" or "When does APMA 1650 meet?"*
 
-**Bulletin Department** - Use for degree requirements and academic policies:
+**Concentration** - Use for degree requirements and academic policies:
 • What courses are required for your concentration  
 • Official graduation requirements and academic rules  
 • Concentration policies, honors eligibility, capstone requirements  
@@ -92,21 +125,29 @@ with st.sidebar:
 **Tip:** Select both filters to get comprehensive information combining requirements with current offerings
         """)
     
-    cab_opts = [None] + list(cab_code_to_dept_map.keys())
-    cab_department = st.selectbox(
-        "CAB Department", 
-        cab_opts, 
+    dept_opts = [None] + list(code_to_department_map.keys())
+    dept_selectbox = st.selectbox(
+        "Department", 
+        dept_opts, 
         index=0,
         help="Filter by department for current course offerings and schedules"
     )
 
-    bulletin_opts = [None] + list(bulletin_code_to_dept_map.keys())
-    bulletin_department = st.selectbox(
-        "Bulletin Department", 
-        bulletin_opts, 
+    concentration_opts = [None] + list(code_to_concentration_map.keys())
+    concentration_selectbox = st.selectbox(
+        "Concentration", 
+        concentration_opts, 
         index=0,
         help="Filter by concentration/major for degree requirements and policies"
     )
+
+    term_opts = ["Fall 2025"]
+    term_selectbox = st.selectbox(
+        "Term", 
+        term_opts, 
+        index=0,
+        help="Select the term for which you want to search for courses"
+    )    
 
     
 
@@ -129,17 +170,17 @@ if search_clicked:
         st.warning("Please enter a question.")
     else:
         # Process department selections
-        b_dept = None if bulletin_department == None else bulletin_code_to_dept_map[bulletin_department].lower()
-        c_dept = None if cab_department == None else cab_code_to_dept_map[cab_department]
+        conc = None if concentration_selectbox == None else code_to_concentration_map[concentration_selectbox].lower()
+        dept = None if dept_selectbox == None else code_to_department_map[dept_selectbox]
         
-        if not b_dept and not c_dept:
-            st.warning("Select at least one department (Bulletin or CAB).")
+        if not conc and not dept:
+            st.warning("Select a concentration and/or department.")
         else:
             # Prepare request payload
             payload = {
                 "question": question.strip(),
-                "bulletin_department": b_dept,
-                "cab_department": c_dept,
+                "concentration": conc,
+                "department": dept, 
                 "rerank_model_name": "BAAI/bge-reranker-base",
                 "embedding_model": selected_embedding_model,
             }
@@ -152,7 +193,8 @@ if search_clicked:
                     response = requests.post(
                         f"{API_BASE}/query", 
                         json=payload, 
-                        timeout=REQUEST_TIMEOUT
+                        headers=get_auth_headers(),
+                        timeout=REQUEST_TIMEOUT,
                     )
                     response.raise_for_status()
                     data = response.json()
@@ -194,11 +236,11 @@ if search_clicked:
                         # Format source and department display
                         if source.lower() == 'bulletin':
                             source_display = 'Bulletin'
-                            reversed_dict = {v: k for k, v in bulletin_code_to_dept_map.items()}
+                            reversed_dict = {v: k for k, v in code_to_concentration_map.items()}
                             department_display = reversed_dict.get(department_code, department_code)
                         elif source.lower() == 'cab':
                             source_display = 'CAB'
-                            reversed_dict = {v: k for k, v in cab_code_to_dept_map.items()}
+                            reversed_dict = {v: k for k, v in code_to_department_map.items()}
                             department_display = reversed_dict.get(department_code, department_code)
                         else:
                             source_display = source.title()
@@ -245,9 +287,9 @@ if evaluate_clicked:
         with m1:
             st.metric("BLEU Score", bleu_score)
         with m2:
-            st.metric("ROUGE Score", rouge_score)
+            st.metric("ROUGE-L Score", rouge_score)
         st.caption("Averages computed on evaluation.json")
     else:
         st.error(f"Evaluation not available for {current_model_display or selected_embedding_model}")
         if eval_data.get("error"):
-            st.caption(f"Error: {eval_data['error']}")
+            st.caption(f"Error: {eval_data['error']}")  

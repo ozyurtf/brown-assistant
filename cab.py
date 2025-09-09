@@ -4,7 +4,7 @@ import re
 import requests
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from utils import map_code_to_dept_cab
+from utils import map_code_to_dept
 
 API_URL = "https://cab.brown.edu/api/"
 HEADERS = {
@@ -140,7 +140,7 @@ def main():
     start = time.time()
     targets: list[tuple[str, str | None]] = []
 
-    cab_code_to_dept_map = map_code_to_dept_cab()
+    cab_code_to_dept_map = map_code_to_dept()
     dept_codes = list(cab_code_to_dept_map.values())
     targets = [(t, d) for t in args.terms for d in dept_codes]
     print(f"[main] discovered departments={len(dept_codes)} total_targets={len(targets)}", flush=True)
