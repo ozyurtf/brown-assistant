@@ -18,14 +18,14 @@ A FastAPI backend is implemented to handle data processing, serve queries effici
 - `cab.py`: Queries the CAB API for all available departments in parallel for Fall 2025 term, processes, cleans and organizes it and writes the results into `files/cab.json`
 
 **2) Indexing and Vectorization**
-- `indexing.py`: Reads the data in files/bulletin.json and `files/cab.json`
+- `indexing.py`: Reads the data in `files/bulletin.json` and `files/cab.json`
     - Data is chunked and embedded with two embedding models separately:
         - Sentence Transformer (`all-MiniLM-L6-v2`)
         - OpenAI Embedding Model (`text-embedding-3-large`)
     - Embeddings are normalized and stored in Chroma vector store along with metadata
-    - vector_store.pkl stores human-readable chunks and metadata used by the RAG runtime
+    - `vector_store.pkl` stores human-readable chunks and metadata used by the RAG runtime
 
-**3) Retrieval and generation**
+**3) Retrieval and Generation**
 - `rag.py`: Core RAG class with methods:
   - `load`: Loads the persisted vector store, selects the appropriate collection based on the chosen embedding model
   - `retrieve`: Filters the chunks in the vector store based on the department and/or concentration specified by the user, retrieves the most similar/relevant chunks based on the user query and selected embedding model, and (optionally) reranks the retrieved chunks with CrossEncoder model
