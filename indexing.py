@@ -2,17 +2,40 @@ import os
 import re
 from typing import Dict, List, Tuple
 import numpy as np
-from sentence_transformers import SentenceTransformer
 import pickle
 import json
 import chromadb
 from chromadb.config import Settings
-from utils import format_course, count_tokens
 from langchain_openai import OpenAIEmbeddings
 from dotenv import load_dotenv
 load_dotenv()
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+def format_course(cab):
+    course_info_all = []
+    for term in cab.keys(): 
+        for dept in cab[term].keys():
+            for course in cab[term][dept]:
+                output_lines = []
+                output_lines.append(f"Term: {term}")
+                output_lines.append(f"Department: {dept}")
+                output_lines.append(f"Course ID: {course.get('course_id', '')}")
+                output_lines.append(f"Course: {course.get('course', '')}")
+                output_lines.append(f"Title: {course.get('title', '')}")
+                output_lines.append(f"Total Sections: {course.get('total_sections', '')}")
+                output_lines.append(f"Instructor Name: {course.get('instructor_name', '')}")
+                output_lines.append(f"Instructor Email: {course.get('instructor_email', '')}")
+                output_lines.append(f"Meeting Times: {course.get('meeting_times', '')}")
+                output_lines.append(f"Description: {course.get('description', '')}")
+                output_lines.append(f"Registration Restrictions: {course.get('registration_restrictions', '')}")
+                output_lines.append(f"Course Attributes: {course.get('course_attributes', '')}")
+                output_lines.append(f"Exam Info: {course.get('exam_info', '')}")
+                output_lines.append(f"Class Notes: {course.get('class_notes', '')}")
+                output_lines.append(f"Sections Text: {course.get('sections_text', '')}")
+                course_info = "\n".join(output_lines)
+                course_info_all.append(course_info)
+    return course_info_all
 
 def chunk_concentration(concentration: str, content: str) -> List[Tuple[str, Dict]]:
     """
@@ -28,10 +51,8 @@ def chunk_concentration(concentration: str, content: str) -> List[Tuple[str, Dic
     chunks = []
     metadata = []
 
-    # Split by ### headers
     sections = re.split(r'^###\s*', content, flags=re.MULTILINE)
     
-    # The first section is the main content (before any ### headers)
     if sections[0].strip():
         main_content = sections[0].strip()
         section_title =  'Main Content'
@@ -43,15 +64,12 @@ def chunk_concentration(concentration: str, content: str) -> List[Tuple[str, Dic
             'source': 'bulletin',
         })        
     
-    # Process sections with ### headers
     for i, section in enumerate(sections[1:], 1):
         if section.strip():
-            # Extract the header title (first line after ###)
             lines = section.strip().split('\n')
             header_title = lines[0].strip() if lines else f'Section {i}'
             section_content = '\n'.join(lines[1:]).strip() if len(lines) > 1 else ''
             
-            # Only add if there's actual content
             if section_content:
                 metadata.append({
                     'concentration': concentration,
@@ -69,7 +87,6 @@ class VectorStore:
         """
         Initialize a Chroma persistent collection and embedding model.
         """
-        self.sentence_transformer = SentenceTransformer('all-MiniLM-L6-v2')
         self.openai_model = OpenAIEmbeddings(model='text-embedding-3-large')
         self.client = chromadb.PersistentClient(path=persist_path)
         self.st_collection = self.client.get_or_create_collection(name=f"courses_st")
@@ -79,19 +96,13 @@ class VectorStore:
         
     def embed_documents(self, texts: List[str]) -> Dict[str, np.ndarray]:
         """
-        Embed a list of texts using both sentence transformer and OpenAI models.
+        Embed a list of texts using OpenAI models.
         """
         if not texts:
             return {
-                'sentence_embedding_model': np.zeros((0, 0), dtype=float),
                 'openai_embedding_model': np.zeros((0, 0), dtype=float)
             }
 
-        # Generate sentence transformer embeddings
-        sentence_embeddings = self.sentence_transformer.encode(texts, convert_to_tensor=False)
-        sentence_embeddings = np.array(sentence_embeddings)
-
-        # Generate OpenAI embeddings with token-aware batching
         batches: List[List[str]] = []
         current: List[str] = []
         current_tokens = 0
@@ -120,7 +131,6 @@ class VectorStore:
         openai_embeddings = np.array(openai_embeddings)
 
         return {
-            'sentence_embedding_model': sentence_embeddings,
             'openai_embedding_model': openai_embeddings,
         }
             
@@ -136,19 +146,12 @@ class VectorStore:
             all_chunks += chunk
             all_metadata += metadata
         
-        # Generate embeddings for all texts
+        if not all_chunks:
+            print("No concentration chunks to process, skipping...")
+            return
+        
         embeddings_dict = self.embed_documents(all_chunks)
-
-        # Add to sentence transformer collection
-        st_embeddings = embeddings_dict['sentence_embedding_model']
-        st_embeddings = st_embeddings / np.linalg.norm(st_embeddings, axis=1, keepdims=True)
-        st_metadata = [{**meta, 'embedding_model': 'sentence_transformer'} for meta in all_metadata]
-        st_offset = self.st_collection.count()
-        st_ids = [f"st_{st_offset + i}" for i in range(len(all_chunks))]
         
-        self.st_collection.add(ids=st_ids, documents=all_chunks, embeddings=st_embeddings.tolist(), metadatas=st_metadata)
-        
-        # Add to OpenAI collection
         openai_embeddings = embeddings_dict['openai_embedding_model']
         openai_embeddings = openai_embeddings / np.linalg.norm(openai_embeddings, axis=1, keepdims=True)
         openai_metadata = [{**meta, 'embedding_model': 'openai'} for meta in all_metadata]
@@ -156,18 +159,15 @@ class VectorStore:
         openai_ids = [f"openai_{openai_offset + i}" for i in range(len(all_chunks))]
         
         self.openai_collection.add(ids=openai_ids, documents=all_chunks, embeddings=openai_embeddings.tolist(), metadatas=openai_metadata)
-        
-        # Store for later use
         self.chunks.extend(all_chunks)
         self.metadata.extend(all_metadata)
         
-        print(f"Processed {len(all_chunks)} chunks from {len(concentration)} concentration entries")
+        print(f"Processed {len(all_chunks)} chunks from {len(concentration_dict)} concentration entries")
 
     def process_cab(self, cab_dict: Dict[str, str]):
         """
         Process the entire cab dictionary and add all chunks to both vector stores.        
         """
-        # Generate minimal metadata with source and id if present
         cab_metas: List[Dict] = []
         for term in cab_dict.keys():
             for department in cab_dict[term].keys():
@@ -181,18 +181,13 @@ class VectorStore:
                     cab_metas.append(meta)                
 
         cab_chunks = format_course(cab_dict)
+        
+        if not cab_chunks:
+            print("No CAB chunks to process, skipping...")
+            return
+        
         embeddings_dict = self.embed_documents(cab_chunks)
 
-        # Add to sentence transformer collection
-        st_embeddings = embeddings_dict['sentence_embedding_model']
-        st_embeddings = st_embeddings / np.linalg.norm(st_embeddings, axis=1, keepdims=True)
-        st_metadata = [{**meta, 'embedding_model': 'sentence_transformer'} for meta in cab_metas]
-        st_offset = self.st_collection.count()
-        st_ids = [f"st_{st_offset + i}" for i in range(len(cab_chunks))]
-        
-        self.st_collection.add(ids=st_ids, documents=cab_chunks, embeddings=st_embeddings.tolist(), metadatas=st_metadata)
-        
-        # Add to OpenAI collection
         openai_embeddings = embeddings_dict['openai_embedding_model']
         openai_embeddings = openai_embeddings / np.linalg.norm(openai_embeddings, axis=1, keepdims=True)
         openai_metadata = [{**meta, 'embedding_model': 'openai'} for meta in cab_metas]
@@ -200,8 +195,6 @@ class VectorStore:
         openai_ids = [f"openai_{openai_offset + i}" for i in range(len(cab_chunks))]
         
         self.openai_collection.add(ids=openai_ids, documents=cab_chunks, embeddings=openai_embeddings.tolist(), metadatas=openai_metadata)
-        
-        # Store for later use
         self.chunks.extend(cab_chunks)
         self.metadata.extend(cab_metas)
         

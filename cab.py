@@ -4,7 +4,9 @@ import re
 import requests
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from utils import map_code_to_dept
+from bs4 import BeautifulSoup
+from typing import Optional
+from playwright.sync_api import sync_playwright
 
 API_URL = "https://cab.brown.edu/api/"
 HEADERS = {
@@ -16,8 +18,56 @@ HEADERS = {
     "Referer": "https://cab.brown.edu/",
 }
 
-session = requests.Session()
-session.headers.update(HEADERS)
+
+def get_authenticated_session():
+    """Use Playwright to get a session with valid cookies that bypass WAF."""
+    print("[get_authenticated_session] Launching Playwright Chromium...", flush=True)
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context()
+        page = context.new_page()
+        page.goto("https://cab.brown.edu/", wait_until="networkidle")
+        # Extra wait to let any WAF / JS challenges finish
+        time.sleep(5)
+
+        cookies = context.cookies()
+        print(f"[get_authenticated_session] Retrieved {len(cookies)} cookies", flush=True)
+
+        new_session = requests.Session()
+        new_session.headers.update(HEADERS)
+        for cookie in cookies:
+            new_session.cookies.set(cookie["name"], cookie["value"])
+
+        browser.close()
+
+    print("[get_authenticated_session] Session authenticated successfully", flush=True)
+    return new_session
+
+
+# Create authenticated session once and reuse
+session = get_authenticated_session()
+
+def map_code_to_dept():
+    """Scrape the main page to find department codes"""
+    url = "https://cab.brown.edu/"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Safari/605.1.15'
+    }
+    
+    response = requests.get(url, headers=headers)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    
+    departments = {}
+    selects = soup.find_all('select')
+    
+    for select in selects:
+        if 'dept' in str(select).lower():
+            options = select.find_all('option')
+            for option in options:
+                if option.get('value') and len(option.get('value')) > 1:
+                    departments[option.text.strip()] = option.get('value')
+    
+    return departments
 
 def normalize_course_code(code: str) -> str:
     if not code:
@@ -51,7 +101,6 @@ def search_term(term: str, dept: str | None) -> list[dict]:
     print(f"[search_term] done term={term} results={len(results)}", flush=True)
     return results
 
-
 def fetch_details(term: str, course_code: str, crn: str) -> dict:
     print(f"[fetch_details] start term={term} code={course_code} crn={crn}", flush=True)
     payload = {
@@ -66,7 +115,6 @@ def fetch_details(term: str, course_code: str, crn: str) -> dict:
     data = response.json()
     print(f"[fetch_details] done term={term} code={course_code}", flush=True)
     return data
-
 
 def build_output(results: list[dict], workers: int) -> dict:
     grouped: dict[str, dict[str, list[dict]]] = {}

@@ -1,9 +1,5 @@
 #!/bin/bash
-
-# RAG Application Startup Script
-# This script handles the complete workflow for the RAG application
-
-set -e  # Exit on any error
+set -e  
 
 echo "Starting RAG Application Workflow..."
 
@@ -102,7 +98,7 @@ echo "Starting API and UI services..."
 # Start FastAPI in the background
 API_PORT_VAL=${API_PORT:-8000}
 echo "Starting FastAPI server on port ${API_PORT_VAL}..."
-uvicorn api:app --host 0.0.0.0 --port ${API_PORT_VAL} &
+uvicorn api:app --host 0.0.0.0 --port ${API_PORT_VAL} --reload &
 API_PID=$!
 
 # Wait for API to start (with retries)

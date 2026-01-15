@@ -9,12 +9,11 @@ import json
 from statistics import mean
 from models import * 
 from rag import RAG
-from utils import compute_bleu_score, compute_rouge_score
+from fastapi.responses import StreamingResponse
 
 load_dotenv()
 app = FastAPI(title="RAG API", version="1.0.0")
 
-# Get API token from environment
 API_TOKEN = os.getenv("API_TOKEN")
 
 def verify_token(authorization: str = Header(None)):
@@ -37,7 +36,6 @@ def verify_token(authorization: str = Header(None)):
 LOGGER_NAME = "rag_logger"
 LOG_DIR = os.path.join(os.getcwd(), "logs")
 LOG_FILE = os.path.join(LOG_DIR, "records.txt")
-EVALUATION_FILE_PATH = os.getenv("EVALUATION_FILE", "files/evaluation.json")
 
 def init_logger() -> logging.Logger:
     os.makedirs(LOG_DIR, exist_ok=True)
@@ -58,21 +56,12 @@ def log_block(lines: List[str]) -> None:
     except Exception:
         pass
 
-
-# Store multiple RAG instances for different models
 rag_instances: Dict[str, RAG] = {}
-cached_evals: Dict[str, EvaluateResponse] = {}
 
-# Control whether to precompute evaluation metrics on startup
-PRECOMPUTE_EVAL = os.getenv("PRECOMPUTE_EVAL", "false").lower() in {"1", "true", "yes", "on"}
-
-# Available embedding models
 AVAILABLE_MODELS = {
-    "sentence_transformer": "all-MiniLM-L6-v2",
     "openai": "text-embedding-3-large"
 }
 
-# Default embedding model
 DEFAULT_EMBEDDING_MODEL = "openai"
 
 def get_or_create_rag(embedding_model: str) -> RAG:
@@ -88,64 +77,11 @@ def get_or_create_rag(embedding_model: str) -> RAG:
     
     return rag_instances[embedding_model]
 
-def compute_evaluation_summary(embedding_model: str) -> EvaluateResponse:
-    try:
-        with open(EVALUATION_FILE_PATH, "r") as f:
-            evaluation = json.load(f)
-    except FileNotFoundError as e:
-        raise RuntimeError(
-            f"Evaluation file not found at '{EVALUATION_FILE_PATH}'. "
-            f"Set EVALUATION_FILE env var or place evaluation.json under 'files/'."
-        ) from e
-
-    rag = get_or_create_rag(embedding_model)
-
-    bleu_scores: List[float] = []
-    rouge_scores: List[float] = []
-
-    for data in evaluation:
-        question = data.get('question', '')
-        golden_answer = data.get('answer', '')
-        concentration = data.get('concentration', '')
-        department = data.get('department', '')
-
-        q_start = time.perf_counter()
-        results = rag.retrieve(
-            query = question,
-            concentration = concentration,
-            department = department,
-            top_k_concentration = 2,
-            top_k_department = 3,
-            rerank_top_n = None,
-            rerank_min_score = None,
-            rerank_model_name = "BAAI/bge-reranker-base",
-        )
-        retrieval_s = (time.perf_counter() - q_start)
-        context = "\n".join(r.get("text", "") for r in results)
-        gen_start = time.perf_counter()
-        generated_answer = rag.generate(question, context, max_tokens = 1000)
-        gen_s = (time.perf_counter() - gen_start)
-
-        bleu = compute_bleu_score(generated_answer, golden_answer)
-        rouge = compute_rouge_score(generated_answer, golden_answer)
-
-        bleu_scores.append(float(bleu))
-        rouge_scores.append(float(rouge))
-
-    summary = EvaluateResponse(
-        bleu_score=float(mean(bleu_scores)) if bleu_scores else 0.0,
-        rouge_score=float(mean(rouge_scores)) if rouge_scores else 0.0,
-        embedding_model=embedding_model
-    )
-
-    return summary
-
 @app.on_event("startup")
 def startup() -> None:
     """Initialize RAG instances for available models at startup."""
     print("Starting up RAG API...")
     
-    # Try to preload both models
     for embedding_model in AVAILABLE_MODELS.keys():
         try:
             get_or_create_rag(embedding_model)
@@ -153,19 +89,8 @@ def startup() -> None:
         except Exception as e:
             print(f"Failed to initialize {embedding_model}: {e}")
     
-    # Optionally precompute evaluations for available models
-    if PRECOMPUTE_EVAL:
-        for embedding_model in AVAILABLE_MODELS.keys():
-            try:
-                if embedding_model in rag_instances:
-                    cached_evals[embedding_model] = compute_evaluation_summary(embedding_model)
-                    print(f"Precomputed evaluation for {embedding_model}")
-            except Exception as e:
-                print(f"Failed to precompute evaluation for {embedding_model}: {e}")
-
-@app.post("/query", response_model=QueryResponse)
-def query(req: QueryRequest, token: str = Depends(verify_token)) -> QueryResponse:
-    # Get embedding model from request, default to DEFAULT_EMBEDDING_MODEL
+@app.post("/query")
+def query(req: QueryRequest, token: str = Depends(verify_token)) -> StreamingResponse:
     embedding_model = req.embedding_model or DEFAULT_EMBEDDING_MODEL
     
     if embedding_model not in AVAILABLE_MODELS:
@@ -181,10 +106,7 @@ def query(req: QueryRequest, token: str = Depends(verify_token)) -> QueryRespons
         ret_start = time.perf_counter()
         results = rag.retrieve(
             query=req.question,
-            concentration = req.concentration,
-            department = req.department,
-            top_k_concentration = 2,
-            top_k_department = 3,
+            top_k = 5,
             rerank_top_n = None,
             rerank_min_score = None,
             rerank_model_name = "BAAI/bge-reranker-base",
@@ -196,7 +118,6 @@ def query(req: QueryRequest, token: str = Depends(verify_token)) -> QueryRespons
         gen_s = (time.perf_counter() - gen_start)
         total_s = (time.perf_counter() - req_start)
 
-        # Log query details
         try:
             ts = datetime.utcnow().isoformat() + "Z"
             lines = [
@@ -204,8 +125,6 @@ def query(req: QueryRequest, token: str = Depends(verify_token)) -> QueryRespons
                 f"timestamp: {ts}",
                 f"embedding_model: {embedding_model}",
                 f"question: {req.question}",
-                f"concentration: {req.concentration}",
-                f"department: {req.department}",
                 f"retrieval_time_s: {retrieval_s:.3f}",
                 f"generation_time_s: {gen_s:.3f}",
                 f"total_time_s: {total_s:.3f}",
@@ -217,34 +136,19 @@ def query(req: QueryRequest, token: str = Depends(verify_token)) -> QueryRespons
             for idx, r in enumerate(results[:3], start=1):
                 meta = r.get("metadata", {}) or {}
                 src = meta.get("source", "")
-                dept = meta.get("department", "")
-                conc = meta.get("concentration", "")
                 sim = r.get("similarity_score", 0.0)
-                lines.append(f"  {idx}) source={src} dept={dept} conc={conc} sim={sim}")
+                lines.append(f"  {idx}) source={src} sim={sim}")
             lines.append("------------------------")
             log_block(lines)
         except Exception:
             pass
+        
+        def generate(answer):
+            yield f"data: {json.dumps({'retrieved': results})}\n\n"
+            for chunk in answer: 
+                yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+        
+        return StreamingResponse(generate(answer), media_type="text/event-stream")
 
-        return QueryResponse(answer=answer, retrieved=results)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/evaluate", response_model=EvaluateResponse)
-def evaluate(req: EvaluateRequest, token: str = Depends(verify_token)) -> EvaluateResponse:
-    """Return cached evaluation summary for specified model."""
-    embedding_model = getattr(req, 'embedding_model', None) or DEFAULT_EMBEDDING_MODEL
-    
-    if embedding_model not in AVAILABLE_MODELS:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Invalid embedding model: {embedding_model}. Available: {list(AVAILABLE_MODELS.keys())}"
-        )
-    
-    if embedding_model not in cached_evals:
-        try:
-            cached_evals[embedding_model] = compute_evaluation_summary(embedding_model)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Evaluation failed: {e}")
-    
-    return cached_evals[embedding_model]

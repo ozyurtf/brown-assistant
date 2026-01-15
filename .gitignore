@@ -219,13 +219,10 @@ __marimo__/
 vector_store.pkl
 vector_store_analysis_results.txt
 ai-engineer-take-home.docx
-cab.json
-cab.jsonl
-bulletin.json
 analysis.ipynb
 .DS_Store
 __pycache__/
 vector_store
 logs/
 brown-assistant.pem
-brown-assistant-demo.mp4
+brown-assistant.mov

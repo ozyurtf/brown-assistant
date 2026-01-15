@@ -1,16 +1,12 @@
-# Attention: Update this function in such a way that it can 
-# take the departments/selected keys from the user via UI.
 import json
 import numpy as np
-from sentence_transformers import SentenceTransformer, CrossEncoder
+from sentence_transformers import CrossEncoder
 from typing import List, Dict
-from utils import *
 import pickle
 from langchain.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
 import chromadb
-from chromadb.config import Settings
 from langchain_openai import OpenAIEmbeddings
 import os
 load_dotenv()
@@ -19,110 +15,58 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 class RAG:
     def __init__(self, model_name: str):
         self.embedding_model = model_name
-        self.backend = 'openai' if model_name.startswith('text-embedding') else 'st'
-        if self.backend == 'st':
-            self.model = SentenceTransformer(model_name)
-            self.openai_embeddings = None
-        else:
-            self.model = None
-            self.openai_embeddings = OpenAIEmbeddings(model=model_name)
+        self.openai_embeddings = OpenAIEmbeddings(model=model_name)
         self.chunks = None
         self.metadata = None
         self.client = None
         self.collection = None
         self.cross_encoder = None
         self.cross_encoder_name = None
-
-    def get_available_keys(self) -> List[str]:
-        """Get all available concentration keys."""
-        keys = set(meta['concentration'] for meta in self.metadata if isinstance(meta, dict) and 'concentration' in meta and meta.get('concentration'))
-        return sorted(list(keys))
         
     def load(self, filepath: str, model_name: str = None, persist_path: str = 'vector_store'):
         """Load the vector store from disk."""
-        # Load metadata/chunks
         with open(f"{filepath}.pkl", 'rb') as f:
             data = pickle.load(f)
         
         self.chunks = data['chunks']
         self.metadata = data['metadata']
         self.client = chromadb.PersistentClient(path=persist_path)
-        self.backend = 'openai' if model_name.startswith('text-embedding') else 'st'
 
-        if self.backend == 'st':
-            print(f"Using SentenceTransformer model: {model_name}")
-            self.embedding_model = SentenceTransformer(model_name)
-            self.collection = self.client.get_or_create_collection(name=f"courses_st")
-        else:
-            print(f"Using OpenAI embeddings model: {model_name}")
-            self.embedding_model = OpenAIEmbeddings(model=model_name)
-            self.collection = self.client.get_or_create_collection(name=f"courses_openai")
+        print(f"Using OpenAI embeddings model: {model_name}")
+        self.embedding_model = OpenAIEmbeddings(model=model_name)
+        self.collection = self.client.get_or_create_collection(name=f"courses_openai")
 
         print(f"Vector store loaded from Chroma at '{persist_path}' with embeddings='{model_name}' and metadata from {filepath}.pkl")
 
 
-    def retrieve(self, query: str, concentration: str = None, department: str = None, top_k_concentration: int = 5, top_k_department: int = 5, rerank_top_n: int | None = None, rerank_min_score: float | None = None, rerank_model_name: str | None = None) -> List[Dict]:
-        """Retrieve from concentration and department separately using provided concentration and department codes and merge results."""
-        # Embed once
-        if self.backend == 'st':
-            query_embedding = self.embedding_model.encode([query], convert_to_tensor=False)
-        else:
-            query_embedding = [self.embedding_model.embed_query(query)]
+    def retrieve(self, query: str, top_k: int = 10, rerank_top_n: int | None = None, rerank_min_score: float | None = None, rerank_model_name: str | None = None) -> List[Dict]:
+        """Retrieve relevant information."""
+        query_embedding = [self.embedding_model.embed_query(query)]
 
         query_embedding = np.array(query_embedding)
         query_embedding = query_embedding / np.linalg.norm(query_embedding, axis=1, keepdims=True)
 
         combined: List[Dict] = []
 
-        if concentration:
-            b_q = self.collection.query(
-                query_embeddings=query_embedding.tolist(),
-                n_results=max(1, top_k_concentration),
-                include=["documents", "metadatas", "distances"],
-                where={"$and": [
-                    {"concentration": {"$eq": concentration}},
-                    {"source": {"$eq": "bulletin"}}
-                ]},
-            )
-            b_docs = b_q.get('documents', [[]])[0]
-            b_metas = b_q.get('metadatas', [[]])[0]
-            b_dists = b_q.get('distances', [[]])[0]
-            
-            for i in range(len(b_docs)):
-                distance = float(b_dists[i]) if i < len(b_dists) else 0.0
-                similarity = 1.0 - distance
-                combined.append({
-                    'text': b_docs[i],
-                    'metadata': b_metas[i] if i < len(b_metas) else {},
-                    'similarity_score': similarity,
-                    'rank': len(combined) + 1,
-                })
+        cb_q = self.collection.query(
+            query_embeddings=query_embedding.tolist(),
+            n_results=max(1, top_k),
+            include=["documents", "metadatas", "distances"]
+        )          
+        cb_docs = cb_q.get('documents', [[]])[0]
+        cb_metas = cb_q.get('metadatas', [[]])[0]
+        cb_dists = cb_q.get('distances', [[]])[0]            
 
-        if department:
-            c_q = self.collection.query(
-                query_embeddings=query_embedding.tolist(),
-                n_results=max(1, top_k_department),
-                include=["documents", "metadatas", "distances"],
-                where={"$and": [
-                    {"department": {"$eq": department}},
-                    {"source": {"$eq": "cab"}}
-                ]},
-            )
-            c_docs = c_q.get('documents', [[]])[0]
-            c_metas = c_q.get('metadatas', [[]])[0]
-            c_dists = c_q.get('distances', [[]])[0]
+        for i in range(len(cb_docs)):
+            distance = float(cb_dists[i]) if i < len(cb_dists) else 0.0
+            similarity = 1.0 - distance
+            combined.append({
+                'text': cb_docs[i],
+                'metadata': cb_metas[i] if i < len(cb_metas) else {},
+                'similarity_score': similarity,
+                'rank': len(combined) + 1,
+            })
 
-            for i in range(len(c_docs)):
-                distance = float(c_dists[i]) if i < len(c_dists) else 0.0
-                similarity = 1.0 - distance
-                combined.append({
-                    'text': c_docs[i],
-                    'metadata': c_metas[i] if i < len(c_metas) else {},
-                    'similarity_score': similarity,
-                    'rank': len(combined) + 1,
-                })
-
-        # Optional cross-encoder reranking
         if rerank_top_n is not None or rerank_min_score is not None or rerank_model_name is not None:
             combined = self.rerank(
                 query = query,
@@ -184,5 +128,7 @@ class RAG:
             """
         )
         rendered = prompt.format(context=context, user_query=user_query)
-        resp = model.invoke(rendered)
-        return resp.content
+        
+        for chunk in model.stream(rendered): 
+            if chunk.content: 
+                yield chunk.content

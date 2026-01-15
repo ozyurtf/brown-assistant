@@ -8,11 +8,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     STREAMLIT_SERVER_PORT=8501 \
     STREAMLIT_SERVER_ADDRESS=0.0.0.0
 
-# Install system dependencies
+# Install minimal system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
     git \
+    bash \
     && rm -rf /var/lib/apt/lists/*
 
 # Set work directory
@@ -22,8 +23,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Download NLTK data
-RUN python -c "import nltk; nltk.download('punkt')"
+# Install Playwright Chromium browser (used by cab.py and crawl4ai)
+RUN python -m playwright install-deps chromium || true
+RUN python -m playwright install chromium
 
 # Copy application code
 COPY . .
@@ -42,5 +44,5 @@ EXPOSE 8000 8501
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/docs || exit 1
 
-# Run the startup script
-CMD ["./startup.sh"]
+# Run the startup script with bash (script uses bash-specific syntax)
+CMD ["bash", "startup.sh"]

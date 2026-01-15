@@ -13,9 +13,6 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - API_TOKEN=${API_TOKEN}
         
-      # Optional: Control evaluation precomputation
-      - PRECOMPUTE_EVAL=${PRECOMPUTE_EVAL}
-      
       # API Configuration
       - API_BASE=http://${API_HOST}:${API_PORT}
       
@@ -33,6 +30,17 @@ services:
       - ./files:/app/files
       - ./vector_store:/app/vector_store
       - ./logs:/app/logs
+      
+      # Mount source code for hot-reload
+      - ./api.py:/app/api.py
+      - ./ui.py:/app/ui.py
+      - ./rag.py:/app/rag.py
+      - ./models.py:/app/models.py
+      - ./indexing.py:/app/indexing.py
+      - ./bulletin.py:/app/bulletin.py
+      - ./cab.py:/app/cab.py
+      - ./startup.sh:/app/startup.sh
+      - ./static:/app/static
       
       # Optional: Mount .env file if you have one
       - ./.env:/app/.env

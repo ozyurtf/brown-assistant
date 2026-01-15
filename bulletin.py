@@ -4,7 +4,7 @@ from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode
 import requests
 from bs4 import BeautifulSoup
 import re
-from typing import List, Tuple
+from typing import List
 
 def get_concentration_codes():
    url = "https://bulletin.brown.edu/the-college/concentrations/"
