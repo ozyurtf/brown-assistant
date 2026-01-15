@@ -9,7 +9,7 @@ A FastAPI backend is implemented to handle data processing, and serve queries ef
 
 ## Demo
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/ajAfNqeyo2Q?si=iWIIXazTpM_kp_cZ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<iframe width="1000" height="506" src="https://www.youtube.com/embed/ajAfNqeyo2Q?si=iWIIXazTpM_kp_cZ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ## End-to-End Workflow
 
