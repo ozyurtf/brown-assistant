@@ -10,7 +10,7 @@ A FastAPI backend is implemented to handle data processing, and serve queries ef
 ## Demo
 
 <a href="https://www.youtube.com/watch?v=ajAfNqeyo2Q" target="_blank" rel="noopener noreferrer" title="Watch the Brown Assistant demo on YouTube">
-  <img src="images/demo.png" alt="Brown Assistant UI demo — click to watch on YouTube" width="100%" />
+  <img src="images/demo.png" alt="Brown Assistant" width="100%" />
 </a>
 
 ## End-to-End Workflow
